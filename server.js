@@ -11,7 +11,7 @@ const DB_NAME = process.env.MONGO_DB || 'taskdb';
 app.use(express.json());
 app.use(express.static(__dirname));
 
-let data = { projects: [], weeklyTasks: [], oneOffTasks: [], recurringTasks: [], deletedTasks: [], nextId: 1 };
+let data = { projects: [], weeklyTasks: [], oneOffTasks: [], recurringTasks: [], deletedTasks: [], shoppingList: [], nextId: 1 };
 let collection;
 const DATA_FILE = path.join(__dirname, 'data.json');
 let useMongo = !!MONGO_URI;
