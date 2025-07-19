@@ -24,7 +24,7 @@ section {
   margin: 1rem 0;
   text-align: center;
 }
-.add-toggle { background: #eee; font-size: 0.45rem; }
+.add-toggle { background: #eee; font-size: 0.6rem; }
 .section-header {
   font-size: 1.2rem;
   font-weight: bold;
@@ -42,11 +42,12 @@ section {
 #projects li {
   list-style: none;
   padding: 0.25rem;
+  font-size: 0.5rem;
 }
 .task-grid {
   display: grid;
   grid-template-columns: 2fr repeat(7, 1fr);
-  gap: 0.25rem;
+  gap: 0.5rem;
   margin-bottom: 1rem;
   align-items: stretch;
 }
@@ -82,6 +83,7 @@ section {
 .form-grid label { display: flex; flex-direction: column; font-size: 0.9rem; }
 .hidden { display: none !important; }
 .form-grid input, .form-grid select { width: 100%; font-size: 1rem; padding: 0.4rem; }
+#projectName { width: 200px; font-size: 1.1rem; }
 </style>
 </head>
 <body>
@@ -301,6 +303,11 @@ function startOfWeek(date) {
 function formatISO(date) {
   return date.toISOString().split('T')[0];
 }
+function formatUK(date) {
+  const d = new Date(date);
+  if (isNaN(d)) return date || '';
+  return d.toLocaleDateString('en-GB');
+}
 function showMessage(msg) {
   const toast = document.getElementById("toast");
   toast.textContent = msg;
@@ -311,11 +318,12 @@ function showMessage(msg) {
 
 function updateWeekLabel() {
   const label = document.getElementById('weekLabel');
-  label.textContent = `Week of ${formatISO(currentWeekStart)}`;
+  label.textContent = `Week of ${formatUK(currentWeekStart)}`;
 }
 
 function changeWeek(offset) {
   currentWeekStart.setDate(currentWeekStart.getDate() + offset * 7);
+  updateWeekLabel();
   renderWeekly();
 }
 
@@ -581,7 +589,7 @@ function renderOneOff() {
     const tr = document.createElement('tr');
     const proj = projects.find(p => p.name === t.project);
     const color = proj ? proj.color : '#000';
-    tr.innerHTML = `<td>${t.name}</td><td style="color:${color}">${t.project}</td><td>${t.dueDate||''}</td>`;
+    tr.innerHTML = `<td>${t.name}</td><td style="color:${color}">${t.project}</td><td>${t.dueDate?formatUK(t.dueDate):''}</td>`;
     const td = document.createElement('td');
     const comp = document.createElement('button');
     comp.textContent = 'Complete';
@@ -677,20 +685,21 @@ function addShoppingItem() {
 function renderShopping() {
   const div = document.getElementById('shoppingList');
   div.innerHTML = '';
-  if (shoppingList.length === 0) { div.textContent = 'No items'; return; }
+  const openItems = shoppingList.filter(it => !it.bought);
+  if (openItems.length === 0) { div.textContent = 'No items'; return; }
   const table = document.createElement('table');
   table.className = 'task-table';
   const head = document.createElement('tr');
   head.innerHTML = '<th>Item</th><th>Project</th><th>Est. Cost</th><th>Month</th><th></th>';
   table.appendChild(head);
-  shoppingList.forEach(it => {
+  openItems.forEach(it => {
     const tr = document.createElement('tr');
     const proj = projects.find(p => p.name === it.project);
     const color = proj ? proj.color : '#000';
-    tr.innerHTML = `<td style="text-decoration:${it.bought?'line-through':'none'}">${it.name}</td><td style="color:${color}">${it.project}</td><td>${it.cost||''}</td><td>${it.month||''}</td>`;
+    tr.innerHTML = `<td>${it.name}</td><td style="color:${color}">${it.project}</td><td>${it.cost||''}</td><td>${it.month||''}</td>`;
     const td = document.createElement('td');
     const b = document.createElement('button');
-    b.textContent = it.bought ? 'Unbuy' : 'Bought';
+    b.textContent = 'Bought';
     b.onclick = () => toggleBoughtShopping(it.id);
     const del = document.createElement('button');
     del.textContent = 'Delete';
@@ -706,7 +715,7 @@ function renderShopping() {
 function toggleBoughtShopping(id) {
   const item = shoppingList.find(i => i.id === id);
   if (!item) return;
-  item.bought = !item.bought;
+  item.bought = true;
   saveData();
   renderShopping();
 }
@@ -780,7 +789,7 @@ function renderRecurring() {
     const tr = document.createElement('tr');
     const proj = projects.find(p => p.name === t.project);
     const color = proj ? proj.color : '#000';
-    tr.innerHTML = `<td>${t.name}</td><td style="color:${color}">${t.project}</td><td>${t.dueDate}</td><td>${t.lastCompleted || ''}</td><td>${t.lastDiff}</td>`;
+    tr.innerHTML = `<td>${t.name}</td><td style="color:${color}">${t.project}</td><td>${formatUK(t.dueDate)}</td><td>${t.lastCompleted ? formatUK(t.lastCompleted) : ''}</td><td>${t.lastDiff}</td>`;
     const td = document.createElement('td');
     const comp = document.createElement('button');
     comp.textContent = 'Complete';
