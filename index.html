@@ -58,9 +58,10 @@ section {
   align-items: center;
   justify-content: center;
 }
-.task-info { display: block; text-align: left; }
-.task-name { font-size: 0.9rem; padding: 0.1rem 0; }
-.task-meta { font-size: 0.7rem; padding: 0.1rem 0; }
+.task-info { display: flex; flex-direction: column; text-align: left; }
+.task-info div { padding: 0.15rem 0; }
+.task-name { font-size: 0.9rem; }
+.task-meta { font-size: 0.7rem; }
 .circle {
   width: 20px;
   height: 20px;
@@ -486,9 +487,20 @@ function taskCell(task) {
   cell.className = 'task-info';
   const proj = projects.find(p => p.name === task.project);
   const color = proj ? proj.color : '#000';
-  cell.innerHTML = `<span class="task-name">${task.name}</span><br>` +
-    `<span class="task-meta" style="color:${color}">${task.project}</span><br>` +
-    `<span class="task-meta">Importance: ${task.importance}<br>Urgency: ${task.urgency}</span>`;
+
+  const nameDiv = document.createElement('div');
+  nameDiv.className = 'task-name';
+  nameDiv.textContent = task.name;
+
+  const projectDiv = document.createElement('div');
+  projectDiv.className = 'task-meta';
+  projectDiv.style.color = color;
+  projectDiv.textContent = task.project;
+
+  const metaDiv = document.createElement('div');
+  metaDiv.className = 'task-meta';
+  metaDiv.textContent = `Importance: ${task.importance} | Urgency: ${task.urgency}`;
+
   const controls = document.createElement('div');
   controls.className = 'controls';
   const closeBtn = document.createElement('button');
@@ -499,6 +511,10 @@ function taskCell(task) {
   delBtn.onclick = () => deleteTask(task.id);
   controls.appendChild(closeBtn);
   controls.appendChild(delBtn);
+
+  cell.appendChild(nameDiv);
+  cell.appendChild(projectDiv);
+  cell.appendChild(metaDiv);
   cell.appendChild(controls);
   return cell;
 }
