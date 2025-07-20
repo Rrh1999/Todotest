@@ -10,6 +10,11 @@ const MONGO_URI = process.env.MONGO_URI;
 const DB_NAME = process.env.MONGO_DB || 'taskdb';
 app.use(express.json());
 app.use(express.static(__dirname));
+app.get('/shopping', (req, res) => res.sendFile(path.join(__dirname, 'shopping.html')));
+app.get('/gardening', (req, res) => res.sendFile(path.join(__dirname, 'gardening.html')));
+app.get('/diy', (req, res) => res.sendFile(path.join(__dirname, 'diy.html')));
+app.get('/work', (req, res) => res.sendFile(path.join(__dirname, 'work.html')));
+app.get('/spending', (req, res) => res.sendFile(path.join(__dirname, 'spending.html')));
 
 let data = { projects: [], weeklyTasks: [], oneOffTasks: [], recurringTasks: [], deletedTasks: [], shoppingList: [], nextId: 1 };
 let collection;
