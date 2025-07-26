@@ -246,11 +246,13 @@ let oneOffTasks = [];
 let recurringTasks = [];
 let deletedTasks = [];
 let shoppingList = [];
+let longTermList = [];
+let generalList = [];
 let nextId = 1;
 let currentWeekStart = startOfWeek(new Date());
 
 async function saveData() {
-  const data = { projects, weeklyTasks, oneOffTasks, recurringTasks, deletedTasks, shoppingList, nextId };
+  const data = { projects, weeklyTasks, oneOffTasks, recurringTasks, deletedTasks, shoppingList, longTermList, generalList, nextId };
   try {
     await fetch('/api/data', {
       method: 'POST',
@@ -273,6 +275,8 @@ async function loadData() {
     recurringTasks = obj.recurringTasks || [];
     deletedTasks = obj.deletedTasks || [];
     shoppingList = obj.shoppingList || [];
+    longTermList = obj.longTermList || [];
+    generalList = obj.generalList || [];
     nextId = obj.nextId || 1;
   } catch (e) {
     console.error('Failed to load data', e);
