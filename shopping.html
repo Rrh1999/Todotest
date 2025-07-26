@@ -7,7 +7,7 @@
 body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 0; }
 header {
   background: #fff;
-  color: #ff69b4;
+  color: #cc5500;
   padding: 1rem;
   text-align: center;
   border-bottom: 1px solid #ddd;
@@ -104,6 +104,7 @@ let nextId = 1;
 
 async function saveData() {
   const data = { projects, shoppingList, longTermList, generalList, nextId };
+main
   try {
     await fetch('/api/data', {
       method: 'POST',
@@ -370,6 +371,7 @@ async function init() {
   renderShopping();
   renderLongTerm();
   renderGeneral();
+main
 }
 init();
 </script>
