@@ -13,6 +13,7 @@ Features include:
 - Clickable day icons to mark completion, including optional completions on grey days.
 - One-off tasks list with due date editing, archive and delete options.
 - Recurring tasks list showing next due date, last completion and over/under metrics with skip or complete actions.
+- Shopping list section to track purchases with project, estimated cost and target month.
 - Projects can be closed when no open tasks reference them; closed projects are hidden from task forms.
 - Project list displays whether open tasks are allocated and only offers the close button when none are open.
 - Toast notifications appear when projects or tasks are added or modified.
