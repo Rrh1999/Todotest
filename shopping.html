@@ -104,7 +104,7 @@ let nextId = 1;
 
 async function saveData() {
   const data = { projects, shoppingList, longTermList, generalList, nextId };
-
+main
   try {
     await fetch('/api/data', {
       method: 'POST',
@@ -371,7 +371,7 @@ async function init() {
   renderShopping();
   renderLongTerm();
   renderGeneral();
-
+main
 }
 init();
 </script>
