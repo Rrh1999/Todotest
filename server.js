@@ -9,6 +9,7 @@ const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI;
 const DB_NAME = process.env.MONGO_DB || 'taskdb';
 app.use(express.json());
+
 app.use(express.static(__dirname));
 app.get('/shopping', (req, res) => res.sendFile(path.join(__dirname, 'shopping.html')));
 app.get('/today', (req, res) => res.sendFile(path.join(__dirname, 'today.html')));
