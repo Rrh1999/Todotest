@@ -90,7 +90,9 @@ section {
 <body>
   <header>
     <h1>Task Manager</h1>
+    <div id="nav-placeholder"></div>
   </header>
+<script src="nav-loader.js"></script>
 
   <div id="toast" class="hidden"></div>
   <section>
@@ -235,22 +237,7 @@ section {
     </div><!-- end recurringSection -->
   </section>
 
-  <section>
-    <div class="toggle section-header" onclick="toggle('shoppingSection')">Shopping List</div>
-    <div id="shoppingSection" class="hidden">
-      <div id="shoppingList"></div>
-      <div class="toggle add-toggle" onclick="toggle('addShopping')">Add Item</div>
-      <div id="addShopping" class="hidden subtoggle form-grid">
-        <label>Name<input type="text" id="shoppingName"></label>
-        <label>Project<select id="shoppingProject"></select></label>
-        <label>Est. Cost<input type="number" id="shoppingCost" step="0.01"></label>
-        <label>Month<input type="month" id="shoppingMonth"></label>
-        <div style="grid-column:1/-1;text-align:center;">
-          <button onclick="addShoppingItem()">Submit</button>
-        </div>
-      </div>
-    </div><!-- end shoppingSection -->
-  </section>
+
 
   <script>
 let projects = []; // {name, color, closed:false}
@@ -369,8 +356,7 @@ function renderProjects() {
   const selects = [
     document.getElementById('weeklyProject'),
     document.getElementById('oneOffProject'),
-    document.getElementById('recurringProject'),
-    document.getElementById('shoppingProject')
+    document.getElementById('recurringProject')
   ];
   selects.forEach(sel => sel.innerHTML = '');
   projects.forEach(p => {
@@ -676,73 +662,6 @@ function editOneOffDue(id) {
   }
 }
 
-function addShoppingItem() {
-  const name = document.getElementById('shoppingName').value;
-  const project = document.getElementById('shoppingProject').value;
-  const cost = document.getElementById('shoppingCost').value;
-  const month = document.getElementById('shoppingMonth').value;
-  if (!name) return;
-  const proj = projects.find(p => p.name === project);
-  if (proj && proj.closed) return;
-  const item = {
-    id: String(nextId).padStart(8, '0'),
-    name, project, cost, month, bought: false
-  };
-  nextId++;
-  shoppingList.push(item);
-  document.getElementById('shoppingName').value = '';
-  document.getElementById('shoppingCost').value = '';
-  document.getElementById('shoppingMonth').value = '';
-  showMessage('Item added');
-  saveData();
-  renderShopping();
-}
-
-function renderShopping() {
-  const div = document.getElementById('shoppingList');
-  div.innerHTML = '';
-  const openItems = shoppingList.filter(it => !it.bought);
-  if (openItems.length === 0) { div.textContent = 'No items'; return; }
-  const table = document.createElement('table');
-  table.className = 'task-table';
-  const head = document.createElement('tr');
-  head.innerHTML = '<th>Item</th><th>Project</th><th>Est. Cost</th><th>Month</th><th></th>';
-  table.appendChild(head);
-  openItems.forEach(it => {
-    const tr = document.createElement('tr');
-    const proj = projects.find(p => p.name === it.project);
-    const color = proj ? proj.color : '#000';
-    tr.innerHTML = `<td>${it.name}</td><td style="color:${color}">${it.project}</td><td>${it.cost||''}</td><td>${it.month||''}</td>`;
-    const td = document.createElement('td');
-    const b = document.createElement('button');
-    b.textContent = 'Bought';
-    b.onclick = () => toggleBoughtShopping(it.id);
-    const del = document.createElement('button');
-    del.textContent = 'Delete';
-    del.onclick = () => deleteShopping(it.id);
-    td.appendChild(b);
-    td.appendChild(del);
-    tr.appendChild(td);
-    table.appendChild(tr);
-  });
-  div.appendChild(table);
-}
-
-function toggleBoughtShopping(id) {
-  const item = shoppingList.find(i => i.id === id);
-  if (!item) return;
-  item.bought = true;
-  saveData();
-  renderShopping();
-}
-
-function deleteShopping(id) {
-  const idx = shoppingList.findIndex(i => i.id === id);
-  if (idx === -1) return;
-  shoppingList.splice(idx, 1);
-  saveData();
-  renderShopping();
-}
 
 function addRecurringTask() {
   const name = document.getElementById('recurringName').value;
@@ -910,7 +829,6 @@ async function init() {
   renderWeekly();
   renderOneOff();
   renderRecurring();
-  renderShopping();
   renderDeleted();
   renderArchived();
 }
