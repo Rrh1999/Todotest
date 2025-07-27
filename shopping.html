@@ -100,11 +100,15 @@ let projects = [];
 let shoppingList = [];
 let longTermList = [];
 let generalList = [];
+let weeklyTasks = [];
+let oneOffTasks = [];
+let recurringTasks = [];
+let deletedTasks = [];
+let todayList = [];
 let nextId = 1;
 
 async function saveData() {
-  const data = { projects, shoppingList, longTermList, generalList, nextId };
-main
+  const data = { projects, weeklyTasks, oneOffTasks, recurringTasks, deletedTasks, shoppingList, longTermList, generalList, todayList, nextId };
   try {
     await fetch('/api/data', {
       method: 'POST',
@@ -122,9 +126,14 @@ async function loadData() {
     if (!res.ok) return;
     const obj = await res.json();
     projects = obj.projects || [];
+    weeklyTasks = obj.weeklyTasks || [];
+    oneOffTasks = obj.oneOffTasks || [];
+    recurringTasks = obj.recurringTasks || [];
+    deletedTasks = obj.deletedTasks || [];
     shoppingList = obj.shoppingList || [];
     longTermList = obj.longTermList || [];
     generalList = obj.generalList || [];
+    todayList = obj.todayList || [];
     nextId = obj.nextId || 1;
   } catch (e) {
     console.error('Failed to load data', e);
@@ -366,12 +375,10 @@ function deleteGeneral(id) {
 
 async function init() {
   await loadData();
-  await saveData();
   renderProjects();
   renderShopping();
   renderLongTerm();
   renderGeneral();
-main
 }
 init();
 </script>
