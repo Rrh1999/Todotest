@@ -125,7 +125,7 @@ document.getElementById('taskRecurring').addEventListener('change', showRecurrin
 
 async function loadData(){
   try{
-    const res = await fetch('/api/data');
+    const res = await fetch('/api/work-data');
     if(!res.ok) return;
     dataStore = await res.json();
     workProjects = dataStore.workProjects || [];
@@ -141,7 +141,7 @@ async function saveData(){
   dataStore.workTasks = workTasks;
   dataStore.workNextId = workNextId;
   try{
-    await fetch('/api/data',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dataStore)});
+    await fetch('/api/work-data',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dataStore)});
   }catch(e){ console.error('save fail',e); }
 }
 
