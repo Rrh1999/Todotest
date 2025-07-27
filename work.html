@@ -24,6 +24,17 @@ section { padding:1rem; border-bottom:10px solid pink; }
 .subtask{ margin-left:1rem; }
 .controls button{ margin-left:0.25rem; font-size:0.7rem; }
 .filter-grid{ display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.5rem; }
+/* priority styles */
+.urgency-high{ background:#ffb3b3; }
+.urgency-high-medium{ background:#ffd9b3; }
+.urgency-medium{ background:#fff0b3; }
+.urgency-medium-low{ background:#d9ffb3; }
+.urgency-low{ background:#b3e6ff; }
+.importance-high{ font-weight:bold; }
+.importance-high-medium{ font-weight:bold; font-style:italic; }
+.importance-medium{ font-style:italic; }
+.importance-medium-low{ opacity:0.8; }
+.importance-low{ opacity:0.6; }
 </style>
 </head>
 <body>
@@ -191,6 +202,9 @@ function priorityVal(v){
   return {'High':5,'High/Medium':4,'Medium':3,'Medium/Low':2,'Low':1}[v]||1;
 }
 
+function urgencyClass(v){return "urgency-"+v.toLowerCase().replace(/[^a-z]+/g,"-");}
+function importanceClass(v){return "importance-"+v.toLowerCase().replace(/[^a-z]+/g,"-");}
+
 function computeNextDue(task,actionDate){
   let base=task.from==='today'?new Date(actionDate):new Date(task.dueDate);
   let d=new Date(base);
@@ -229,14 +243,22 @@ function editTask(id){
 }
 
 function addSubtask(id){
-  const parent=workTasks.find(x=>x.id===id); if(!parent) return;
-  const name=prompt('Subtask name'); if(!name) return;
-  const due=prompt('Due date YYYY-MM-DD')||'';
-  parent.subtasks.push({id:String(workNextId).padStart(8,'0'),name,dueDate:due,status:'open'});
+  const parent = workTasks.find(x => x.id === id);
+  if (!parent) return;
+  const name = prompt('Subtask name');
+  if (!name) return;
+  const project = prompt('Project', parent.project) || parent.project;
+  const due = prompt('Due date YYYY-MM-DD') || '';
+  const importance = prompt('Importance', parent.importance) || parent.importance;
+  const urgency = prompt('Urgency', parent.urgency) || parent.urgency;
+  const notes = prompt('Notes') || '';
+  parent.subtasks.push({id: String(workNextId).padStart(8,'0'), name, project, dueDate: due, importance, urgency, notes, status: 'open'});
   workNextId++;
   saveData();
   renderTasks();
 }
+
+
 
 function renderTasks(){
   const list=document.getElementById('taskList');
@@ -262,7 +284,8 @@ function renderTasks(){
   });
   filtered.forEach(t=>{
     const row=document.createElement('div');
-    row.className='task-row';
+    row.className='task-row '+urgencyClass(t.urgency)+' '+importanceClass(t.importance);
+    row.title=t.notes||"";
     row.innerHTML=`<div>${t.name}</div><div>${t.project}</div><div>${t.dueDate||''}</div><div>${t.importance}</div><div>${t.urgency}</div>`;
     const ctrl=document.createElement('div'); ctrl.className='controls';
     const comp=document.createElement('button'); comp.textContent='Complete'; comp.onclick=()=>completeTask(t.id);
@@ -273,18 +296,29 @@ function renderTasks(){
     row.appendChild(ctrl);
     list.appendChild(row);
     if(t.subtasks){
-      t.subtasks.forEach(st=>{
-        if(st.status==='open'){
-          const srow=document.createElement('div');
-          srow.className='task-row subtask';
-          srow.innerHTML=`<div>${st.name}</div><div></div><div>${st.dueDate||''}</div><div></div><div></div>`;
-          const sctrl=document.createElement('div'); sctrl.className='controls';
-          const scomp=document.createElement('button'); scomp.textContent='Complete'; scomp.onclick=()=>{st.status='closed'; saveData(); renderTasks();};
-          const sdel=document.createElement('button');
-          sdel.textContent='Delete';
-          sdel.onclick=()=>{t.subtasks=t.subtasks.filter(x=>x!==st); saveData(); renderTasks();};
-          sctrl.appendChild(scomp); sctrl.appendChild(sdel); srow.appendChild(sctrl); list.appendChild(srow);
-        }
+      let subs=t.subtasks.filter(st=>st.status==='open');
+      subs=subs.filter(st=>{
+        if(fProj!=='all' && st.project!==fProj) return false;
+        if(fUrg!=='all' && st.urgency!==fUrg) return false;
+        if(fImp!=='all' && st.importance!==fImp) return false;
+        if(fDue==='overdue' && st.dueDate && st.dueDate>=today) return false;
+        if(fDue==='today' && st.dueDate!==today) return false;
+        return true;
+      });
+      subs.sort((a,b)=>{
+        const u=priorityVal(b.urgency)-priorityVal(a.urgency);
+        if(u!==0) return u;
+        return priorityVal(b.importance)-priorityVal(a.importance);
+      });
+      subs.forEach(st=>{
+        const srow=document.createElement('div');
+        srow.className='task-row subtask '+urgencyClass(st.urgency)+' '+importanceClass(st.importance);
+        srow.title=st.notes||'';
+        srow.innerHTML=`<div>${st.name}</div><div>${st.project}</div><div>${st.dueDate||''}</div><div>${st.importance}</div><div>${st.urgency}</div>`;
+        const sctrl=document.createElement('div'); sctrl.className='controls';
+        const scomp=document.createElement('button'); scomp.textContent='Complete'; scomp.onclick=()=>{st.status='closed'; saveData(); renderTasks();};
+        const sdel=document.createElement('button'); sdel.textContent='Delete'; sdel.onclick=()=>{t.subtasks=t.subtasks.filter(x=>x!==st); saveData(); renderTasks();};
+        sctrl.appendChild(scomp); sctrl.appendChild(sdel); srow.appendChild(sctrl); list.appendChild(srow);
       });
     }
   });
