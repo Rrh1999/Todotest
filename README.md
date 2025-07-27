@@ -1,8 +1,6 @@
 # Task Manager Demo
 
-This repository contains a small demo of a task manager. Run `npm start` and open `http://localhost:3000` in a browser to try it out. By default data is saved to `data.json` on disk so your tasks persist between restarts.
-
-If you would like to share the same data across multiple devices, provide a MongoDB connection string via the `MONGO_URI` environment variable (and optionally `MONGO_DB` for the database name which defaults to `taskdb`). When `MONGO_URI` is set the server will store and load the state from MongoDB instead of the local file.
+This repository contains a small demo of a task manager. Run `npm start` and open `http://localhost:3000` in a browser to try it out. Data is saved to `data.json` on disk so your tasks persist between restarts.
 
 Features include:
 
@@ -17,4 +15,4 @@ Features include:
 - Projects can be closed when no open tasks reference them; closed projects are hidden from task forms.
 - Project list displays whether open tasks are allocated and only offers the close button when none are open.
 - Toast notifications appear when projects or tasks are added or modified.
-- Data is persisted in `data.json` by default or in MongoDB when `MONGO_URI` is provided.
+- Data is persisted in `data.json` so your tasks survive between restarts.
