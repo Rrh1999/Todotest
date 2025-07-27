@@ -2,14 +2,295 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Work</title>
+<title>Work Tasks</title>
+<style>
+body { font-family: 'Segoe UI', Tahoma, sans-serif; margin:0; padding:0; }
+header {
+  background:#fff;
+  color:#ff69b4;
+  padding:1rem;
+  text-align:center;
+  border-bottom:1px solid #ddd;
+}
+section { padding:1rem; border-bottom:10px solid pink; }
+.toggle { cursor:pointer; background:#f4f4f4; padding:0.5rem; border-radius:4px; margin:1rem 0; text-align:center; }
+.add-toggle{ background:#eee; font-size:0.8rem; }
+.section-header{ font-size:1.2rem; font-weight:bold; background:#cfe2ff; }
+.form-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:0.5rem; align-items:center; }
+.form-grid label{ display:flex; flex-direction:column; font-size:0.9rem; }
+.form-grid input,.form-grid select{ width:100%; font-size:1rem; padding:0.4rem; }
+.hidden{ display:none !important; }
+.task-row{ display:grid; grid-template-columns:2fr 1fr 1fr 1fr 1fr; gap:0.25rem; align-items:center; border:1px solid #ccc; padding:0.25rem; margin-top:0.25rem; }
+.subtask{ margin-left:1rem; }
+.controls button{ margin-left:0.25rem; font-size:0.7rem; }
+.filter-grid{ display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.5rem; }
+</style>
 </head>
 <body>
-<header>
-  <h1>Work</h1>
-  <div id="nav-placeholder"></div>
-</header>
-<script src="nav-loader.js"></script>
-<p>Content coming soon.</p>
+  <header>
+    <h1>Work Tasks</h1>
+    <div id="nav-placeholder"></div>
+  </header>
+  <script src="nav-loader.js"></script>
+
+  <section>
+    <div class="toggle section-header" onclick="toggle('projSection')">Projects</div>
+    <div id="projSection" class="hidden">
+      <label>Project Name <input type="text" id="workProjectName"></label>
+      <label>Color <input type="color" id="workProjectColor" value="#ff0000"></label>
+      <button onclick="addWorkProject()">Add</button>
+      <ul id="workProjectList"></ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="toggle section-header" onclick="toggle('taskSection')">Tasks</div>
+    <div id="taskSection" class="hidden">
+      <div class="toggle add-toggle" onclick="toggle('addTaskForm')">Add Task</div>
+      <div id="addTaskForm" class="hidden form-grid">
+        <label>Name<input type="text" id="taskName"></label>
+        <label>Project<select id="taskProject"></select></label>
+        <label>Due Date<input type="date" id="taskDue"></label>
+        <label>Importance<select id="taskImportance">
+          <option>High</option>
+          <option>High/Medium</option>
+          <option>Medium</option>
+          <option>Medium/Low</option>
+          <option>Low</option>
+        </select></label>
+        <label>Urgency<select id="taskUrgency">
+          <option>High</option>
+          <option>High/Medium</option>
+          <option>Medium</option>
+          <option>Medium/Low</option>
+          <option>Low</option>
+        </select></label>
+        <label><input type="checkbox" id="taskRecurring"> Recurring</label>
+        <label class="recurring-field hidden">Frequency<select id="taskFreq">
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select></label>
+        <label class="recurring-field hidden">Interval<input type="number" id="taskInterval" value="1" min="1"></label>
+        <label class="recurring-field hidden">Next due from<select id="taskFrom">
+          <option value="intended">Intended due date</option>
+          <option value="today">Completion date</option>
+        </select></label>
+        <div style="grid-column:1/-1;text-align:center;">
+          <button onclick="addTask()">Submit</button>
+        </div>
+      </div>
+
+      <div class="filter-grid">
+        <label>Project<select id="filterProject"><option value="all">All</option></select></label>
+        <label>Urgency<select id="filterUrgency"><option value="all">All</option><option>High</option><option>High/Medium</option><option>Medium</option><option>Medium/Low</option><option>Low</option></select></label>
+        <label>Importance<select id="filterImportance"><option value="all">All</option><option>High</option><option>High/Medium</option><option>Medium</option><option>Medium/Low</option><option>Low</option></select></label>
+        <label>Due<select id="filterDue"><option value="all">All</option><option value="overdue">Overdue</option><option value="today">Today</option></select></label>
+        <button onclick="renderTasks()">Apply</button>
+      </div>
+
+      <div id="taskList"></div>
+    </div>
+  </section>
+
+<script>
+let dataStore = {};
+let workProjects = [];
+let workTasks = [];
+let workNextId = 1;
+
+function toggle(id){
+  document.getElementById(id).classList.toggle('hidden');
+}
+
+function showRecurringFields(){
+  const checked = document.getElementById('taskRecurring').checked;
+  document.querySelectorAll('.recurring-field').forEach(el=>{
+    if(checked) el.classList.remove('hidden');
+    else el.classList.add('hidden');
+  });
+}
+document.getElementById('taskRecurring').addEventListener('change', showRecurringFields);
+
+async function loadData(){
+  try{
+    const res = await fetch('/api/data');
+    if(!res.ok) return;
+    dataStore = await res.json();
+    workProjects = dataStore.workProjects || [];
+    workTasks = dataStore.workTasks || [];
+    workNextId = dataStore.workNextId || 1;
+    renderProjects();
+    renderTasks();
+  }catch(e){ console.error('load fail',e); }
+}
+
+async function saveData(){
+  dataStore.workProjects = workProjects;
+  dataStore.workTasks = workTasks;
+  dataStore.workNextId = workNextId;
+  try{
+    await fetch('/api/data',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dataStore)});
+  }catch(e){ console.error('save fail',e); }
+}
+
+function addWorkProject(){
+  const name = document.getElementById('workProjectName').value.trim();
+  const color = document.getElementById('workProjectColor').value;
+  if(!name || workProjects.find(p=>p.name===name)) return;
+  workProjects.push({name,color});
+  document.getElementById('workProjectName').value='';
+  renderProjects();
+  saveData();
+}
+
+function renderProjects(){
+  const ul = document.getElementById('workProjectList');
+  const sel = document.getElementById('taskProject');
+  const filt = document.getElementById('filterProject');
+  ul.innerHTML=''; sel.innerHTML=''; filt.innerHTML='<option value="all">All</option>';
+  workProjects.forEach(p=>{
+    const li=document.createElement('li');
+    li.style.color=p.color; li.textContent=p.name; ul.appendChild(li);
+    const opt=document.createElement('option'); opt.value=p.name; opt.textContent=p.name; sel.appendChild(opt);
+    const opt2=opt.cloneNode(true); filt.appendChild(opt2);
+  });
+}
+
+function addTask(){
+  const name=document.getElementById('taskName').value.trim();
+  const project=document.getElementById('taskProject').value;
+  const due=document.getElementById('taskDue').value;
+  const importance=document.getElementById('taskImportance').value;
+  const urgency=document.getElementById('taskUrgency').value;
+  const rec=document.getElementById('taskRecurring').checked;
+  if(!name) return;
+  const task={
+    id:String(workNextId).padStart(8,'0'),
+    name, project, dueDate: due,
+    importance, urgency,
+    recurring: rec,
+    frequency: rec?document.getElementById('taskFreq').value:null,
+    interval: rec?parseInt(document.getElementById('taskInterval').value,10):null,
+    from: rec?document.getElementById('taskFrom').value:null,
+    status:'open',
+    subtasks:[],
+    notes:''
+  };
+  workNextId++;
+  workTasks.push(task);
+  document.getElementById('taskName').value='';
+  document.getElementById('taskDue').value='';
+  document.getElementById('taskRecurring').checked=false;
+  showRecurringFields();
+  saveData();
+  renderTasks();
+}
+
+function priorityVal(v){
+  return {'High':5,'High/Medium':4,'Medium':3,'Medium/Low':2,'Low':1}[v]||1;
+}
+
+function computeNextDue(task,actionDate){
+  let base=task.from==='today'?new Date(actionDate):new Date(task.dueDate);
+  let d=new Date(base);
+  if(task.frequency==='daily') d.setDate(d.getDate()+task.interval);
+  if(task.frequency==='weekly') d.setDate(d.getDate()+7*task.interval);
+  if(task.frequency==='monthly') d.setMonth(d.getMonth()+task.interval);
+  return d.toISOString().slice(0,10);
+}
+
+function completeTask(id){
+  const t=workTasks.find(x=>x.id===id); if(!t) return;
+  if(t.recurring){
+    t.dueDate=computeNextDue(t,new Date());
+  }else{
+    t.status='closed';
+  }
+  saveData();
+  renderTasks();
+}
+
+function deleteTask(id){
+  const idx=workTasks.findIndex(x=>x.id===id); if(idx===-1) return;
+  if(confirm('Delete task?')){ workTasks.splice(idx,1); saveData(); renderTasks(); }
+}
+
+function editTask(id){
+  const t=workTasks.find(x=>x.id===id); if(!t) return;
+  const newName=prompt('Task name',t.name); if(newName!==null) t.name=newName;
+  const newProj=prompt('Project',t.project); if(newProj!==null) t.project=newProj;
+  if(!t.recurring){
+    const newDue=prompt('Due date YYYY-MM-DD',t.dueDate); if(newDue!==null) t.dueDate=newDue;
+  }
+  const note=prompt('Notes',t.notes||''); if(note!==null) t.notes=note;
+  saveData();
+  renderTasks();
+}
+
+function addSubtask(id){
+  const parent=workTasks.find(x=>x.id===id); if(!parent) return;
+  const name=prompt('Subtask name'); if(!name) return;
+  const due=prompt('Due date YYYY-MM-DD')||'';
+  parent.subtasks.push({id:String(workNextId).padStart(8,'0'),name,dueDate:due,status:'open'});
+  workNextId++;
+  saveData();
+  renderTasks();
+}
+
+function renderTasks(){
+  const list=document.getElementById('taskList');
+  list.innerHTML='';
+  let filtered=workTasks.filter(t=>t.status==='open');
+  const fProj=document.getElementById('filterProject').value;
+  const fUrg=document.getElementById('filterUrgency').value;
+  const fImp=document.getElementById('filterImportance').value;
+  const fDue=document.getElementById('filterDue').value;
+  const today=new Date().toISOString().slice(0,10);
+  filtered=filtered.filter(t=>{
+    if(fProj!=='all' && t.project!==fProj) return false;
+    if(fUrg!=='all' && t.urgency!==fUrg) return false;
+    if(fImp!=='all' && t.importance!==fImp) return false;
+    if(fDue==='overdue' && t.dueDate && t.dueDate>=today) return false;
+    if(fDue==='today' && t.dueDate!==today) return false;
+    return true;
+  });
+  filtered.sort((a,b)=>{
+    const u=priorityVal(b.urgency)-priorityVal(a.urgency);
+    if(u!==0) return u;
+    return priorityVal(b.importance)-priorityVal(a.importance);
+  });
+  filtered.forEach(t=>{
+    const row=document.createElement('div');
+    row.className='task-row';
+    row.innerHTML=`<div>${t.name}</div><div>${t.project}</div><div>${t.dueDate||''}</div><div>${t.importance}</div><div>${t.urgency}</div>`;
+    const ctrl=document.createElement('div'); ctrl.className='controls';
+    const comp=document.createElement('button'); comp.textContent='Complete'; comp.onclick=()=>completeTask(t.id);
+    const edit=document.createElement('button'); edit.textContent='Edit'; edit.onclick=()=>editTask(t.id);
+    const sub=document.createElement('button'); sub.textContent='Add Sub'; sub.onclick=()=>addSubtask(t.id);
+    const del=document.createElement('button'); del.textContent='Delete'; del.onclick=()=>deleteTask(t.id);
+    ctrl.appendChild(comp); ctrl.appendChild(edit); ctrl.appendChild(sub); ctrl.appendChild(del);
+    row.appendChild(ctrl);
+    list.appendChild(row);
+    if(t.subtasks){
+      t.subtasks.forEach(st=>{
+        if(st.status==='open'){
+          const srow=document.createElement('div');
+          srow.className='task-row subtask';
+          srow.innerHTML=`<div>${st.name}</div><div></div><div>${st.dueDate||''}</div><div></div><div></div>`;
+          const sctrl=document.createElement('div'); sctrl.className='controls';
+          const scomp=document.createElement('button'); scomp.textContent='Complete'; scomp.onclick=()=>{st.status='closed'; saveData(); renderTasks();};
+          const sdel=document.createElement('button');
+          sdel.textContent='Delete';
+          sdel.onclick=()=>{t.subtasks=t.subtasks.filter(x=>x!==st); saveData(); renderTasks();};
+          sctrl.appendChild(scomp); sctrl.appendChild(sdel); srow.appendChild(sctrl); list.appendChild(srow);
+        }
+      });
+    }
+  });
+}
+
+loadData();
+</script>
 </body>
 </html>
