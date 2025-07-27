@@ -17,7 +17,21 @@ app.get('/diy', (req, res) => res.sendFile(path.join(__dirname, 'diy.html')));
 app.get('/work', (req, res) => res.sendFile(path.join(__dirname, 'work.html')));
 app.get('/spending', (req, res) => res.sendFile(path.join(__dirname, 'spending.html')));
 
-let data = { projects: [], weeklyTasks: [], oneOffTasks: [], recurringTasks: [], deletedTasks: [], shoppingList: [], longTermList: [], generalList: [], todayList: [], nextId: 1 };
+let data = {
+  projects: [],
+  weeklyTasks: [],
+  oneOffTasks: [],
+  recurringTasks: [],
+  deletedTasks: [],
+  shoppingList: [],
+  longTermList: [],
+  generalList: [],
+  todayList: [],
+  nextId: 1,
+  workProjects: [],
+  workTasks: [],
+  workNextId: 1
+};
 let collection;
 const DATA_FILE = path.join(__dirname, 'data.json');
 let useMongo = !!MONGO_URI;
