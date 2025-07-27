@@ -110,7 +110,7 @@ let nextId = 1;
 async function saveData() {
   const data = { projects, weeklyTasks, oneOffTasks, recurringTasks, deletedTasks, shoppingList, longTermList, generalList, todayList, nextId };
   try {
-    await fetch('/api/data', {
+    await fetch('/api/index-data', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -122,7 +122,7 @@ async function saveData() {
 
 async function loadData() {
   try {
-    const res = await fetch('/api/data');
+    const res = await fetch('/api/index-data');
     if (!res.ok) return;
     const obj = await res.json();
     projects = obj.projects || [];

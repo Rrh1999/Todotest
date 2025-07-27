@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "backup": "node backupMongo.js"
   },
   "dependencies": {
     "dotenv": "^17.2.0",

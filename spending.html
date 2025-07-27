@@ -70,10 +70,10 @@ let nextId=1;
 
 async function saveData(){
   const data={projects,shoppingList,longTermList,canBuyList,nextId};
-  await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  await fetch('/api/spending-data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
 }
 async function loadData(){
-  const res=await fetch('/api/data');
+  const res=await fetch('/api/spending-data');
   if(!res.ok) return;
   const obj=await res.json();
   projects=obj.projects||[];

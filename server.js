@@ -1,13 +1,9 @@
 require('dotenv').config();
-console.log("🔍 MONGO_URI:", process.env.MONGO_URI);
 const express = require('express');
-const { MongoClient } = require('mongodb');
 const fs = require('fs');
 const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = process.env.MONGO_URI;
-const DB_NAME = process.env.MONGO_DB || 'taskdb';
 app.use(express.json());
 app.use(express.static(__dirname));
 app.get('/shopping', (req, res) => res.sendFile(path.join(__dirname, 'shopping.html')));
@@ -17,7 +13,8 @@ app.get('/diy', (req, res) => res.sendFile(path.join(__dirname, 'diy.html')));
 app.get('/work', (req, res) => res.sendFile(path.join(__dirname, 'work.html')));
 app.get('/spending', (req, res) => res.sendFile(path.join(__dirname, 'spending.html')));
 
-let data = {
+// index page data
+let indexData = {
   projects: [],
   weeklyTasks: [],
   oneOffTasks: [],
@@ -27,70 +24,79 @@ let data = {
   longTermList: [],
   generalList: [],
   todayList: [],
-  nextId: 1,
+  nextId: 1
+};
+
+// work page data
+let workData = {
   workProjects: [],
   workTasks: [],
   workNextId: 1
 };
-let collection;
-const DATA_FILE = path.join(__dirname, 'data.json');
-let useMongo = !!MONGO_URI;
 
-async function initDb() {
-  if (useMongo) {
+// spending page data
+let spendingData = {
+  projects: [],
+  shoppingList: [],
+  longTermList: [],
+  canBuyList: [],
+  nextId: 1
+};
+
+const INDEX_FILE = path.join(__dirname, 'indexData.json');
+const WORK_FILE = path.join(__dirname, 'workData.json');
+const SPENDING_FILE = path.join(__dirname, 'spendingData.json');
+
+function loadJson(file, def) {
+  if (fs.existsSync(file)) {
     try {
-      const client = new MongoClient(MONGO_URI, { serverSelectionTimeoutMS: 5000, ignoreUndefined: true });
-      await client.connect();
-      const db = client.db(DB_NAME);
-      collection = db.collection('state');
-      const doc = await collection.findOne({ _id: 'main' });
-      if (doc && doc.data) {
-        data = doc.data;
-      } else {
-        await collection.updateOne({ _id: 'main' }, { $set: { data } }, { upsert: true });
-      }
-      return;
+      return JSON.parse(fs.readFileSync(file, 'utf8'));
     } catch (err) {
-      console.error('Mongo connection error', err);
-      useMongo = false;
-    }
-  }
-  // fallback to file storage
-  if (fs.existsSync(DATA_FILE)) {
-    try {
-      data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    } catch (err) {
-      console.error('Failed to read data file', err);
+      console.error('Failed to read', file, err);
     }
   } else {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+    fs.writeFileSync(file, JSON.stringify(def, null, 2));
   }
+  return def;
 }
 
-app.get('/api/data', (req, res) => {
-  res.json(data);
+function initDb() {
+  indexData = loadJson(INDEX_FILE, indexData);
+  workData = loadJson(WORK_FILE, workData);
+  spendingData = loadJson(SPENDING_FILE, spendingData);
+}
+
+app.get('/api/index-data', (req, res) => {
+  res.json(indexData);
 });
 
-app.post('/api/data', async (req, res) => {
-  data = req.body;
-  try {
-    if (useMongo) {
-      await collection.updateOne({ _id: 'main' }, { $set: { data } }, { upsert: true });
-    } else {
-      fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-    }
-    res.json({ status: 'ok' });
-  } catch (e) {
-    console.error('Failed to save', e);
-    res.status(500).json({ error: 'Failed to save' });
-  }
+app.post('/api/index-data', (req, res) => {
+  indexData = req.body;
+  fs.writeFileSync(INDEX_FILE, JSON.stringify(indexData, null, 2));
+  res.json({ status: 'ok' });
 });
 
-initDb().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
-}).catch(err => {
-  console.error('Mongo connection error', err);
-  process.exit(1);
+app.get('/api/work-data', (req, res) => {
+  res.json(workData);
+});
+
+app.post('/api/work-data', (req, res) => {
+  workData = req.body;
+  fs.writeFileSync(WORK_FILE, JSON.stringify(workData, null, 2));
+  res.json({ status: 'ok' });
+});
+
+app.get('/api/spending-data', (req, res) => {
+  res.json(spendingData);
+});
+
+app.post('/api/spending-data', (req, res) => {
+  spendingData = req.body;
+  fs.writeFileSync(SPENDING_FILE, JSON.stringify(spendingData, null, 2));
+  res.json({ status: 'ok' });
+});
+
+initDb();
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
 });
