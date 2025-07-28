@@ -320,7 +320,9 @@ function renderTasks(){
     const row=document.createElement('div'); row.className='task-row'; row.style.marginLeft=depth+'rem'; row.draggable=true; row.ondragstart=ev=>startDrag(ev,t.id); row.ondragover=allowDrop; row.ondrop=ev=>dropOnTask(ev,t.id);
     row.innerHTML=`<div>${t.name}</div><div>${t.project}</div><div>${t.type}</div><div>${t.dueDate||''}</div><div>${t.urgent?'Y':'N'}</div>`;
     const ctrl=document.createElement('div'); ctrl.className='controls';
-    const infoBtn=document.createElement('button'); infoBtn.textContent='Info'; infoBtn.onclick=()=>alert(t.info||'');
+    const infoBtn=document.createElement('button');
+    infoBtn.textContent='Info';
+    infoBtn.onclick=()=>showInfo(t);
     const comp=document.createElement('button'); comp.textContent='Complete'; comp.onclick=()=>completeTask(t.id);
     const edit=document.createElement('button'); edit.textContent='Edit'; edit.onclick=()=>editTask(t.id);
     const sub=document.createElement('button'); sub.textContent='Add Sub'; sub.onclick=()=>addSubtask(t.id);
@@ -357,6 +359,9 @@ function initCalendar(){
 }
 function saveCalendar(){calendarEvents=calendar.getEvents().map(ev=>({id:ev.id,title:ev.title,start:ev.startStr,end:ev.endStr,taskId:ev.extendedProps.taskId||''})); saveData();}
 function deleteCalendarEvents(taskId){if(!calendar) return; calendar.getEvents().forEach(ev=>{if(ev.extendedProps.taskId===taskId) ev.remove();}); saveCalendar();}
+function showInfo(t){
+  alert(`Name: ${t.name}\nProject: ${t.project}\nType: ${t.type}\nDue: ${t.dueDate||''}\nUrgent: ${t.urgent?'Yes':'No'}\nInfo: ${t.info||''}`);
+}
 
 loadData();
 </script>

@@ -41,6 +41,8 @@ header {
     <ul id="dueList" class="task-list"></ul>
     <label style="display:block;margin-top:0.5rem;"><input type="checkbox" id="workToggle"> Show Work Tasks</label>
     <ul id="workTaskList" class="task-list hidden"></ul>
+    <label style="display:block;margin-top:0.5rem;"><input type="checkbox" id="diyToggle"> Show DIY Tasks</label>
+    <ul id="diyTaskList" class="task-list hidden"></ul>
     <label style="display:block;margin-top:0.5rem;"><input type="checkbox" id="stretchToggle"> Show Stretch Tasks</label>
     <ul id="stretchTaskList" class="task-list hidden"></ul>
     <label style="display:block;margin-top:0.5rem;"><input type="checkbox" id="bigToggle"> Show Big Tasks</label>
@@ -58,6 +60,7 @@ let todayList=[], todayTasks=[];
 let overdueTasks=[], dueTasks=[];
 let nextId=1;
 let workDataStore={}, workTasks=[];
+let diyDataStore={}, diyTasks=[];
 function formatISO(date){const d=new Date(date);const y=d.getFullYear();const m=String(d.getMonth()+1).padStart(2,'0');const day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
 function formatUK(date){const d=new Date(date);if(isNaN(d)) return date||'';return d.toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'2-digit'});}
 function startOfWeek(date){const d=new Date(date);const day=d.getDay();const diff=(day===0?-6:1-day);d.setDate(d.getDate()+diff);d.setHours(0,0,0,0);return d;}
@@ -75,6 +78,11 @@ async function loadData(){
       workDataStore=await resW.json();
       workTasks=workDataStore.workTasks||[];
     }
+    const resD=await fetch('/api/diy-data');
+    if(resD.ok){
+      diyDataStore=await resD.json();
+      diyTasks=diyDataStore.diyTasks||[];
+    }
   }catch(e){console.error('Failed to load data',e);}
 }
 async function saveData(){const data={projects,weeklyTasks,oneOffTasks,recurringTasks,stretchTasks,bigTasks,deletedTasks,shoppingList,longTermList,generalList,todayList,nextId};try{await fetch('/api/index-data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}catch(e){console.error('Failed to save data',e);}}
@@ -83,6 +91,12 @@ async function saveWorkData(){
   try{
     await fetch('/api/work-data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(workDataStore)});
   }catch(e){console.error('Failed to save work data',e);}
+}
+async function saveDiyData(){
+  diyDataStore.diyTasks = diyTasks;
+  try{
+    await fetch('/api/diy-data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(diyDataStore)});
+  }catch(e){console.error('Failed to save diy data',e);}
 }
 function weeklyDueSoon(task){const today=new Date();for(let i=0;i<7;i++){const d=new Date(today);d.setDate(today.getDate()+i);const name=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];if(task.days.includes(name))return true;}return false;}
 function weeklyMissed(task){
@@ -204,6 +218,7 @@ function renderSide(){
     due.appendChild(li);
   });
   if(document.getElementById('workToggle').checked) renderWorkTasks();
+  if(document.getElementById('diyToggle').checked) renderDiyTasks();
   if(document.getElementById('stretchToggle').checked) renderStretchTasks();
   if(document.getElementById('bigToggle').checked) renderBigTasks();
 }
@@ -216,6 +231,19 @@ function renderWorkTasks(){
     const b=document.createElement('button');
     b.textContent='Add';
     b.onclick=()=>addWorkToToday(t.id);
+    li.appendChild(b);
+    ul.appendChild(li);
+  });
+}
+function renderDiyTasks(){
+  const ul=document.getElementById('diyTaskList');
+  ul.innerHTML='';
+  diyTasks.filter(t=>t.status==='open').forEach(t=>{
+    const li=document.createElement('li');
+    li.textContent=`${t.name} (${t.project})`;
+    const b=document.createElement('button');
+    b.textContent='Add';
+    b.onclick=()=>addDiyToToday(t.id);
     li.appendChild(b);
     ul.appendChild(li);
   });
@@ -246,7 +274,43 @@ function renderBigTasks(){
     ul.appendChild(li);
   });
 }
-function renderToday(){const ul=document.getElementById('todayList');ul.innerHTML='';todayTasks.forEach((t,i)=>{const li=document.createElement('li');li.className='today-item';li.draggable=true;li.dataset.index=i;li.textContent=`${t.item.name} (${t.item.project})`;const btnR=document.createElement('button');btnR.textContent='Remove';btnR.onclick=()=>removeToday(i);const btnC=document.createElement('button');btnC.textContent='Complete';btnC.onclick=()=>completeToday(i);li.appendChild(btnR);li.appendChild(btnC);ul.appendChild(li);});}
+function updateToggles(){
+  const wt=document.getElementById('workToggle');
+  const dt=document.getElementById('diyToggle');
+  const hasWork=todayTasks.some(t=>t.type==='work');
+  const hasDiy=todayTasks.some(t=>t.type==='diy');
+  wt.disabled=hasWork;
+  dt.disabled=hasDiy;
+  document.getElementById('workTaskList').classList.toggle('hidden',!wt.checked);
+  document.getElementById('diyTaskList').classList.toggle('hidden',!dt.checked);
+  if(hasWork) wt.checked=true;
+  if(hasDiy) dt.checked=true;
+}
+function renderToday(){
+  const ul=document.getElementById('todayList');
+  ul.innerHTML='';
+  todayTasks.forEach((t,i)=>{
+    const li=document.createElement('li');
+    li.className='today-item';
+    li.draggable=true;
+    li.dataset.index=i;
+    const text=document.createElement('span');
+    text.textContent=`${t.item.name} (${t.item.project})`;
+    const btnBox=document.createElement('span');
+    const btnR=document.createElement('button');
+    btnR.textContent='Remove';
+    btnR.onclick=()=>removeToday(i);
+    const btnC=document.createElement('button');
+    btnC.textContent='Complete';
+    btnC.onclick=()=>completeToday(i);
+    btnBox.appendChild(btnR);
+    btnBox.appendChild(btnC);
+    li.appendChild(text);
+    li.appendChild(btnBox);
+    ul.appendChild(li);
+  });
+  updateToggles();
+}
 function selectTask(t,idx,list){
   if(list==='overdue')overdueTasks.splice(idx,1);else dueTasks.splice(idx,1);
   todayTasks.push(t);
@@ -254,6 +318,7 @@ function selectTask(t,idx,list){
   saveData();
   renderSide();
   renderToday();
+  updateToggles();
 }
 function addWorkToToday(id){
   const task=workTasks.find(t=>t.id===id);
@@ -262,6 +327,16 @@ function addWorkToToday(id){
   todayList.push({type:'work',id});
   saveData();
   renderToday();
+  updateToggles();
+}
+function addDiyToToday(id){
+  const task=diyTasks.find(t=>t.id===id);
+  if(!task) return;
+  todayTasks.push({category:'diy',type:'diy',item:task});
+  todayList.push({type:'diy',id});
+  saveData();
+  renderToday();
+  updateToggles();
 }
 function addStretchToToday(id){
   const task=stretchTasks.find(t=>t.id===id);
@@ -287,6 +362,7 @@ function removeToday(idx){
   saveData();
   renderSide();
   renderToday();
+  updateToggles();
 }
 function clearToday(){
   todayTasks.forEach(t=>{
@@ -298,6 +374,7 @@ function clearToday(){
   saveData();
   renderSide();
   renderToday();
+  updateToggles();
 }
 function computeNextDue(task,actionDate){const base=(task.from==='today')?new Date(actionDate):new Date(task.dueDate);let d=new Date(base);if(task.frequency==='daily')d.setDate(d.getDate()+task.interval);if(task.frequency==='weekly')d.setDate(d.getDate()+7*task.interval);if(task.frequency==='monthly')d.setMonth(d.getMonth()+task.interval);if(task.frequency==='yearly')d.setFullYear(d.getFullYear()+task.interval);return formatISO(d);}
 function completeToday(idx){
@@ -324,7 +401,9 @@ function completeToday(idx){
       t.item.status='closed';
     }
     saveWorkData();
-  }
+  }else if(t.type==='diy'){
+    t.item.status='closed';
+    saveDiyData();
   }else if(t.type==='stretch'){
     t.item.completedDates.push(formatISO(now));
   }else if(t.type==='big'){
@@ -343,6 +422,12 @@ document.getElementById('todayList').addEventListener('dragstart',e=>{if(e.targe
 document.getElementById('workToggle').addEventListener('change',e=>{
   document.getElementById('workTaskList').classList.toggle('hidden',!e.target.checked);
   if(e.target.checked) renderWorkTasks();
+  updateToggles();
+});
+document.getElementById('diyToggle').addEventListener('change',e=>{
+  document.getElementById('diyTaskList').classList.toggle('hidden',!e.target.checked);
+  if(e.target.checked) renderDiyTasks();
+  updateToggles();
 });
 document.getElementById('stretchToggle').addEventListener('change',e=>{
   document.getElementById('stretchTaskList').classList.toggle('hidden',!e.target.checked);
