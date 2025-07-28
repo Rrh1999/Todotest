@@ -31,7 +31,9 @@ let indexData = {
 let workData = {
   workProjects: [],
   workTasks: [],
-  workNextId: 1
+  workNextId: 1,
+  calendarEvents: [],
+  calendarNextId: 1
 };
 
 // spending page data
