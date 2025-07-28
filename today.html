@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Today</title>
 <style>
 body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 0; }
@@ -21,6 +22,9 @@ header {
 .due { color: orange; }
 .due-soon { font-weight: bold; }
 .today-item { cursor: move; }
+@media (max-width: 600px) {
+  html { font-size: 14px; }
+}
 </style>
 </head>
 <body>

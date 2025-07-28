@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Work Tasks</title>
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
 <style>
 body { font-family: 'Segoe UI', Tahoma, sans-serif; margin:0; padding:0; }
 header {
@@ -35,6 +37,13 @@ section { padding:1rem; border-bottom:10px solid pink; }
 .importance-medium{ font-style:italic; }
 .importance-medium-low{ opacity:0.8; }
 .importance-low{ opacity:0.6; }
+.calendar-container{display:flex;gap:1rem;flex-wrap:wrap;}
+#calendar{flex:1 1 300px;min-width:300px;}
+#calendarTaskList{flex:1 1 200px;min-width:200px;border:1px solid #ccc;padding:0.5rem;max-height:400px;overflow-y:auto;}
+.fc-task{background:#f4f4f4;margin:0.25rem 0;padding:0.25rem;border:1px solid #ccc;cursor:grab;}
+@media (max-width: 600px) {
+  html { font-size: 14px; }
+}
 </style>
 </head>
 <body>
@@ -43,6 +52,8 @@ section { padding:1rem; border-bottom:10px solid pink; }
     <div id="nav-placeholder"></div>
   </header>
   <script src="nav-loader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/interaction@5.11.3/main.min.js"></script>
 
   <section>
     <div class="toggle section-header" onclick="toggle('projSection')">Projects</div>
@@ -104,11 +115,34 @@ section { padding:1rem; border-bottom:10px solid pink; }
     </div>
   </section>
 
+  <section>
+    <div class="toggle section-header" onclick="toggle('calendarSection')">Calendar</div>
+    <div id="calendarSection" class="hidden">
+      <div class="calendar-container">
+        <div id="calendar"></div>
+        <div>
+          <h3>Tasks</h3>
+          <div id="calendarTaskList"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="toggle section-header" onclick="toggle('meetingSection')">Meetings</div>
+    <div id="meetingSection" class="hidden">
+      <p>Coming soon...</p>
+    </div>
+  </section>
+
 <script>
 let dataStore = {};
 let workProjects = [];
 let workTasks = [];
 let workNextId = 1;
+let calendarEvents = [];
+let calendarNextId = 1;
+let calendar;
 
 function toggle(id){
   document.getElementById(id).classList.toggle('hidden');
@@ -131,8 +165,12 @@ async function loadData(){
     workProjects = dataStore.workProjects || [];
     workTasks = dataStore.workTasks || [];
     workNextId = dataStore.workNextId || 1;
+    calendarEvents = dataStore.calendarEvents || [];
+    calendarNextId = dataStore.calendarNextId || 1;
     renderProjects();
     renderTasks();
+    renderCalendarTasks();
+    initCalendar();
   }catch(e){ console.error('load fail',e); }
 }
 
@@ -140,6 +178,8 @@ async function saveData(){
   dataStore.workProjects = workProjects;
   dataStore.workTasks = workTasks;
   dataStore.workNextId = workNextId;
+  dataStore.calendarEvents = calendarEvents;
+  dataStore.calendarNextId = calendarNextId;
   try{
     await fetch('/api/work-data',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dataStore)});
   }catch(e){ console.error('save fail',e); }
@@ -318,10 +358,51 @@ function renderTasks(){
         const sctrl=document.createElement('div'); sctrl.className='controls';
         const scomp=document.createElement('button'); scomp.textContent='Complete'; scomp.onclick=()=>{st.status='closed'; saveData(); renderTasks();};
         const sdel=document.createElement('button'); sdel.textContent='Delete'; sdel.onclick=()=>{t.subtasks=t.subtasks.filter(x=>x!==st); saveData(); renderTasks();};
-        sctrl.appendChild(scomp); sctrl.appendChild(sdel); srow.appendChild(sctrl); list.appendChild(srow);
-      });
-    }
+      sctrl.appendChild(scomp); sctrl.appendChild(sdel); srow.appendChild(sctrl); list.appendChild(srow);
+    });
+  }
   });
+  renderCalendarTasks();
+}
+
+function renderCalendarTasks(){
+  const cont=document.getElementById('calendarTaskList');
+  cont.innerHTML='';
+  workTasks.filter(t=>t.status==='open').forEach(t=>{
+    const div=document.createElement('div');
+    div.className='fc-task';
+    div.textContent=t.name;
+    div.dataset.id=t.id;
+    div.dataset.title=t.name;
+    cont.appendChild(div);
+  });
+  new FullCalendar.Draggable(cont,{itemSelector:'.fc-task',eventData:el=>({title:el.dataset.title,taskId:el.dataset.id})});
+}
+
+function initCalendar(){
+  const el=document.getElementById('calendar');
+  calendar=new FullCalendar.Calendar(el,{
+    initialView:'dayGridMonth',
+    height:'auto',
+    editable:true,
+    droppable:true,
+    eventDurationEditable:true,
+    events:calendarEvents,
+    eventReceive:info=>{
+      info.event.setProp('id',String(calendarNextId++));
+      info.event.setExtendedProp('taskId',info.draggedEl.dataset.id);
+      saveCalendar();
+    },
+    eventDrop:saveCalendar,
+    eventResize:saveCalendar,
+    eventClick:info=>{ if(confirm('Remove this scheduled task?')){ info.event.remove(); saveCalendar(); } }
+  });
+  calendar.render();
+}
+
+function saveCalendar(){
+  calendarEvents=calendar.getEvents().map(ev=>({id:ev.id,title:ev.title,start:ev.startStr,end:ev.endStr,taskId:ev.extendedProps.taskId||''}));
+  saveData();
 }
 
 loadData();
