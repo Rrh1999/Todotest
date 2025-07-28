@@ -208,6 +208,7 @@ let maxSubDepth = 7;
 let calendarEvents = [];
 let calendarNextId = 1;
 let calendar;
+let calendarDraggable = null;
 let meetings = [];
 let meetingNextId = 1;
 let currentMeeting = null;
@@ -525,7 +526,10 @@ function renderCalendarTasks(){
     div.dataset.title=t.name;
     cont.appendChild(div);
   });
-  new FullCalendar.Draggable(cont,{itemSelector:'.fc-task',eventData:el=>({title:el.dataset.title,taskId:el.dataset.id})});
+  if(calendarDraggable){
+    calendarDraggable.destroy();
+  }
+  calendarDraggable=new FullCalendar.Draggable(cont,{itemSelector:'.fc-task',eventData:el=>({title:el.dataset.title,taskId:el.dataset.id})});
 }
 
 function initCalendar(){

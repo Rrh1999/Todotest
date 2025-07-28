@@ -115,6 +115,7 @@ let maxSubDepth=7;
 let calendarEvents=[];
 let calendarNextId=1;
 let calendar;
+let calendarDraggable=null;
 let pendingTask=null;
 let editingTask=null;
 let modalParent=null;
@@ -332,9 +333,21 @@ function renderTasks(){
 }
 
 function renderCalendarTasks(){
-  const cont=document.getElementById('calendarTaskList'); cont.innerHTML='';
-  forEachTask(t=>{ if(t.status!=='open') return; const div=document.createElement('div'); div.className='fc-task'; div.textContent=t.name; div.dataset.id=t.id; div.dataset.title=t.name; cont.appendChild(div); });
-  new FullCalendar.Draggable(cont,{itemSelector:'.fc-task',eventData:el=>({title:el.dataset.title,taskId:el.dataset.id})});
+  const cont=document.getElementById('calendarTaskList');
+  cont.innerHTML='';
+  forEachTask(t=>{
+    if(t.status!=='open') return;
+    const div=document.createElement('div');
+    div.className='fc-task';
+    div.textContent=t.name;
+    div.dataset.id=t.id;
+    div.dataset.title=t.name;
+    cont.appendChild(div);
+  });
+  if(calendarDraggable){
+    calendarDraggable.destroy();
+  }
+  calendarDraggable=new FullCalendar.Draggable(cont,{itemSelector:'.fc-task',eventData:el=>({title:el.dataset.title,taskId:el.dataset.id})});
 }
 
 function initCalendar(){
