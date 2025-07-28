@@ -553,13 +553,11 @@ function saveCalendar(){
   calendarEvents=calendar.getEvents().map(ev=>({id:ev.id,title:ev.title,start:ev.startStr,end:ev.endStr,taskId:ev.extendedProps.taskId||''}));
   saveData();
 }
-
 function deleteCalendarEvents(taskId){
   if(!calendar) return;
   calendar.getEvents().forEach(ev=>{if(ev.extendedProps.taskId===taskId) ev.remove();});
   saveCalendar();
 }
-
 function meetingStatus(date){
   const today=new Date().toISOString().slice(0,10);
   if(!date) return 'meeting-upcoming';
