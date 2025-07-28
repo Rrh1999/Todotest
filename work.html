@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Work Tasks</title>
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
 <style>
 body { font-family: 'Segoe UI', Tahoma, sans-serif; margin:0; padding:0; }
 header {
@@ -35,6 +37,23 @@ section { padding:1rem; border-bottom:10px solid pink; }
 .importance-medium{ font-style:italic; }
 .importance-medium-low{ opacity:0.8; }
 .importance-low{ opacity:0.6; }
+.calendar-container{display:flex;gap:1rem;flex-wrap:wrap;}
+#calendar{flex:1 1 300px;min-width:300px;}
+#calendarTaskList{flex:1 1 200px;min-width:200px;border:1px solid #ccc;padding:0.5rem;max-height:400px;overflow-y:auto;}
+.fc-task{background:#f4f4f4;margin:0.25rem 0;padding:0.25rem;border:1px solid #ccc;cursor:grab;}
+.subtoggle{font-size:0.9rem;margin-top:0.5rem;}
+.meeting-grid{display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-start;}
+.meeting-col{flex:1 1 200px;min-width:200px;}
+.meeting-card{border:1px solid #ccc;padding:0.5rem;margin:0.25rem 0;border-radius:4px;cursor:pointer;}
+.meeting-past{background:#f0f0f0;}
+.meeting-today{background:#d0ffd0;}
+.meeting-upcoming{background:#f0f8ff;}
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);}
+.modal-content{background:#fff;padding:1rem;border-radius:4px;max-width:90%;width:320px;}
+.modal-content input,.modal-content textarea,.modal-content select{width:100%;margin-bottom:0.5rem;}
+@media (max-width: 600px) {
+  html { font-size: 14px; }
+}
 </style>
 </head>
 <body>
@@ -43,6 +62,8 @@ section { padding:1rem; border-bottom:10px solid pink; }
     <div id="nav-placeholder"></div>
   </header>
   <script src="nav-loader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/interaction@5.11.3/main.min.js"></script>
 
   <section>
     <div class="toggle section-header" onclick="toggle('projSection')">Projects</div>
@@ -50,13 +71,24 @@ section { padding:1rem; border-bottom:10px solid pink; }
       <label>Project Name <input type="text" id="workProjectName"></label>
       <label>Color <input type="color" id="workProjectColor" value="#ff0000"></label>
       <button onclick="addWorkProject()">Add</button>
+      <label>Max Subtask Depth <input type="number" id="subtaskDepth" min="1" max="7"></label>
       <ul id="workProjectList"></ul>
     </div>
   </section>
 
   <section>
     <div class="toggle section-header" onclick="toggle('taskSection')">Tasks</div>
-    <div id="taskSection" class="hidden">
+  <div id="taskSection" class="hidden" ondragover="allowDrop(event)" ondrop="dropOnRoot(event)">
+      <div class="filter-grid">
+        <label>Project<select id="filterProject"><option value="all">All</option></select></label>
+        <label>Urgency<select id="filterUrgency"><option value="all">All</option><option>High</option><option>High/Medium</option><option>Medium</option><option>Medium/Low</option><option>Low</option></select></label>
+        <label>Importance<select id="filterImportance"><option value="all">All</option><option>High</option><option>High/Medium</option><option>Medium</option><option>Medium/Low</option><option>Low</option></select></label>
+        <label>Due<select id="filterDue"><option value="all">All</option><option value="overdue">Overdue</option><option value="today">Today</option></select></label>
+        <button onclick="renderTasks()">Apply</button>
+      </div>
+
+      <div id="taskList"></div>
+
       <div class="toggle add-toggle" onclick="toggle('addTaskForm')">Add Task</div>
       <div id="addTaskForm" class="hidden form-grid">
         <label>Name<input type="text" id="taskName"></label>
@@ -91,24 +123,94 @@ section { padding:1rem; border-bottom:10px solid pink; }
           <button onclick="addTask()">Submit</button>
         </div>
       </div>
-
-      <div class="filter-grid">
-        <label>Project<select id="filterProject"><option value="all">All</option></select></label>
-        <label>Urgency<select id="filterUrgency"><option value="all">All</option><option>High</option><option>High/Medium</option><option>Medium</option><option>Medium/Low</option><option>Low</option></select></label>
-        <label>Importance<select id="filterImportance"><option value="all">All</option><option>High</option><option>High/Medium</option><option>Medium</option><option>Medium/Low</option><option>Low</option></select></label>
-        <label>Due<select id="filterDue"><option value="all">All</option><option value="overdue">Overdue</option><option value="today">Today</option></select></label>
-        <button onclick="renderTasks()">Apply</button>
-      </div>
-
-      <div id="taskList"></div>
     </div>
   </section>
 
-<script>
+  <section>
+    <div class="toggle section-header" onclick="toggle('calendarSection')">Calendar</div>
+    <div id="calendarSection" class="hidden">
+      <div class="calendar-container">
+        <div id="calendar"></div>
+        <div>
+          <h3>Tasks</h3>
+          <div id="calendarTaskList"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="toggle section-header" onclick="toggle('meetingSection')">Meetings</div>
+    <div id="meetingSection" class="hidden">
+      <button onclick="openMeetingModal()">Add Meeting</button>
+      <div id="meetingColumns" class="meeting-grid"></div>
+      <div style="margin-top:1rem;">
+        <div class="toggle subtoggle" onclick="toggle('allMeetings')">View All Meetings</div>
+        <div id="allMeetings" class="hidden meeting-grid"></div>
+      </div>
+    </div>
+  </section>
+
+  <div id="meetingModal" class="modal hidden">
+    <div class="modal-content">
+      <label>Title<input id="meetTitle"></label>
+      <label>Project<select id="meetProject"></select></label>
+      <label>Date<input type="date" id="meetDate"></label>
+      <label>Attendees<textarea id="meetAttendees"></textarea></label>
+      <label>Content<textarea id="meetContent"></textarea></label>
+      <label>Outcomes<textarea id="meetOutcomes"></textarea></label>
+      <div id="attachList"></div>
+      <input id="attachInput" placeholder="Attachment URL"><button onclick="addAttachment()">Add</button>
+      <div style="text-align:right;margin-top:0.5rem;">
+        <button onclick="saveMeeting()">Save</button>
+        <button onclick="deleteMeeting()">Delete</button>
+        <button onclick="addFollowUp()">Add Follow-Up</button>
+        <button onclick="addOutcomeTask()">Add as Task</button>
+        <button onclick="closeMeetingModal()">Close</button>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <div id="taskModal" class="modal hidden">
+    <div class="modal-content">
+      <label>Name<input id="taskModalName"></label>
+      <label>Project<select id="taskModalProject"></select></label>
+      <label>Due Date<input type="date" id="taskModalDue"></label>
+      <label>Importance<select id="taskModalImportance">
+        <option>High</option>
+        <option>High/Medium</option>
+        <option>Medium</option>
+        <option>Medium/Low</option>
+        <option>Low</option>
+      </select></label>
+      <label>Urgency<select id="taskModalUrgency">
+        <option>High</option>
+        <option>High/Medium</option>
+        <option>Medium</option>
+        <option>Medium/Low</option>
+        <option>Low</option>
+      </select></label>
+      <label>Notes<textarea id="taskModalNotes"></textarea></label>
+      <div style="text-align:right;margin-top:0.5rem;">
+        <button onclick="saveTaskModal()">Save</button>
+        <button onclick="closeTaskModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
 let dataStore = {};
 let workProjects = [];
 let workTasks = [];
 let workNextId = 1;
+let maxSubDepth = 7;
+let calendarEvents = [];
+let calendarNextId = 1;
+let calendar;
+let meetings = [];
+let meetingNextId = 1;
+let currentMeeting = null;
 
 function toggle(id){
   document.getElementById(id).classList.toggle('hidden');
@@ -131,8 +233,16 @@ async function loadData(){
     workProjects = dataStore.workProjects || [];
     workTasks = dataStore.workTasks || [];
     workNextId = dataStore.workNextId || 1;
+    maxSubDepth = dataStore.maxSubDepth || 7;
+    calendarEvents = dataStore.calendarEvents || [];
+    calendarNextId = dataStore.calendarNextId || 1;
+    meetings = dataStore.meetings || [];
+    meetingNextId = dataStore.meetingNextId || 1;
     renderProjects();
     renderTasks();
+    renderCalendarTasks();
+    renderMeetings();
+    initCalendar();
   }catch(e){ console.error('load fail',e); }
 }
 
@@ -140,6 +250,11 @@ async function saveData(){
   dataStore.workProjects = workProjects;
   dataStore.workTasks = workTasks;
   dataStore.workNextId = workNextId;
+  dataStore.maxSubDepth = maxSubDepth;
+  dataStore.calendarEvents = calendarEvents;
+  dataStore.calendarNextId = calendarNextId;
+  dataStore.meetings = meetings;
+  dataStore.meetingNextId = meetingNextId;
   try{
     await fetch('/api/work-data',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dataStore)});
   }catch(e){ console.error('save fail',e); }
@@ -152,6 +267,7 @@ function addWorkProject(){
   workProjects.push({name,color});
   document.getElementById('workProjectName').value='';
   renderProjects();
+  renderMeetings();
   saveData();
 }
 
@@ -159,6 +275,11 @@ function renderProjects(){
   const ul = document.getElementById('workProjectList');
   const sel = document.getElementById('taskProject');
   const filt = document.getElementById('filterProject');
+  const depthInput = document.getElementById('subtaskDepth');
+  if(depthInput){
+    depthInput.value = maxSubDepth;
+    depthInput.onchange = () => { maxSubDepth = parseInt(depthInput.value,10)||1; saveData(); };
+  }
   ul.innerHTML=''; sel.innerHTML=''; filt.innerHTML='<option value="all">All</option>';
   workProjects.forEach(p=>{
     const li=document.createElement('li');
@@ -178,6 +299,7 @@ function addTask(){
   if(!name) return;
   const task={
     id:String(workNextId).padStart(8,'0'),
+    parent:null,
     name, project, dueDate: due,
     importance, urgency,
     recurring: rec,
@@ -214,48 +336,127 @@ function computeNextDue(task,actionDate){
   return d.toISOString().slice(0,10);
 }
 
+function getTaskInfo(id, list=workTasks, depth=0, parent=null){
+  for(const t of list){
+    if(t.id===id) return {task:t,parent,depth};
+    if(t.subtasks){
+      const res=getTaskInfo(id,t.subtasks,depth+1,t);
+      if(res) return res;
+    }
+  }
+  return null;
+}
+
+function forEachTask(cb,list=workTasks,depth=0,parent=null){
+  list.forEach(t=>{
+    cb(t,depth,parent);
+    if(t.subtasks) forEachTask(cb,t.subtasks,depth+1,t);
+  });
+}
+
 function completeTask(id){
-  const t=workTasks.find(x=>x.id===id); if(!t) return;
+  const info=getTaskInfo(id);
+  if(!info) return;
+  const t=info.task;
   if(t.recurring){
     t.dueDate=computeNextDue(t,new Date());
   }else{
     t.status='closed';
   }
+  deleteCalendarEvents(id);
   saveData();
   renderTasks();
 }
 
 function deleteTask(id){
-  const idx=workTasks.findIndex(x=>x.id===id); if(idx===-1) return;
-  if(confirm('Delete task?')){ workTasks.splice(idx,1); saveData(); renderTasks(); }
+  const info=getTaskInfo(id);
+  if(!info) return;
+  if(confirm('Delete task?')){
+    if(info.parent){
+      info.parent.subtasks=info.parent.subtasks.filter(x=>x!==info.task);
+    }else{
+      workTasks=workTasks.filter(x=>x!==info.task);
+    }
+    deleteCalendarEvents(id);
+    saveData();
+    renderTasks();
+  }
 }
 
 function editTask(id){
-  const t=workTasks.find(x=>x.id===id); if(!t) return;
-  const newName=prompt('Task name',t.name); if(newName!==null) t.name=newName;
-  const newProj=prompt('Project',t.project); if(newProj!==null) t.project=newProj;
-  if(!t.recurring){
-    const newDue=prompt('Due date YYYY-MM-DD',t.dueDate); if(newDue!==null) t.dueDate=newDue;
+  const info=getTaskInfo(id);
+  if(!info) return;
+  openTaskModal(info.task,true);
+}
+
+function addSubtask(id){
+  const info=getTaskInfo(id);
+  if(!info) return;
+  if(info.depth+1>=maxSubDepth){ alert('Max subtask depth reached'); return; }
+  openTaskModal({project:info.task.project}, false, info.task);
+}
+
+let draggingTaskId=null;
+function startDrag(ev,id){
+  draggingTaskId=id;
+}
+
+function allowDrop(ev){ev.preventDefault();}
+
+function dropOnTask(ev,targetId){
+  ev.preventDefault();
+  if(draggingTaskId && draggingTaskId!==targetId){
+    changeParent(draggingTaskId,targetId);
   }
-  const note=prompt('Notes',t.notes||''); if(note!==null) t.notes=note;
+}
+
+function dropOnRoot(ev){
+  ev.preventDefault();
+  if(draggingTaskId){
+    changeParent(draggingTaskId,null);
+  }
+}
+
+function changeParent(taskId,newParentId){
+  const info=getTaskInfo(taskId);
+  if(!info) return;
+  const newParentInfo=newParentId?getTaskInfo(newParentId):null;
+  if(newParentInfo && isDescendant(taskId,newParentId)){
+    alert('Cannot move into its own descendant');
+    return;
+  }
+  const newDepth=newParentInfo?newParentInfo.depth+1:0;
+  if(newDepth>=maxSubDepth){
+    alert('Max subtask depth reached');
+    return;
+  }
+  // remove from current parent
+  if(info.parent){
+    info.parent.subtasks=info.parent.subtasks.filter(t=>t!==info.task);
+  }else{
+    workTasks=workTasks.filter(t=>t!==info.task);
+  }
+  info.task.parent=newParentInfo?newParentInfo.task.id:null;
+  if(newParentInfo){
+    newParentInfo.task.subtasks=newParentInfo.task.subtasks||[];
+    newParentInfo.task.subtasks.push(info.task);
+  }else{
+    workTasks.push(info.task);
+  }
   saveData();
   renderTasks();
 }
 
-function addSubtask(id){
-  const parent = workTasks.find(x => x.id === id);
-  if (!parent) return;
-  const name = prompt('Subtask name');
-  if (!name) return;
-  const project = prompt('Project', parent.project) || parent.project;
-  const due = prompt('Due date YYYY-MM-DD') || '';
-  const importance = prompt('Importance', parent.importance) || parent.importance;
-  const urgency = prompt('Urgency', parent.urgency) || parent.urgency;
-  const notes = prompt('Notes') || '';
-  parent.subtasks.push({id: String(workNextId).padStart(8,'0'), name, project, dueDate: due, importance, urgency, notes, status: 'open'});
-  workNextId++;
-  saveData();
-  renderTasks();
+function isDescendant(rootId,targetId){
+  const startInfo=getTaskInfo(rootId);
+  if(!startInfo) return false;
+  const stack=[startInfo.task];
+  while(stack.length){
+    const t=stack.pop();
+    if(t.id===targetId) return true;
+    if(t.subtasks) t.subtasks.forEach(st=>stack.push(st));
+  }
+  return false;
 }
 
 
@@ -263,29 +464,42 @@ function addSubtask(id){
 function renderTasks(){
   const list=document.getElementById('taskList');
   list.innerHTML='';
-  let filtered=workTasks.filter(t=>t.status==='open');
   const fProj=document.getElementById('filterProject').value;
   const fUrg=document.getElementById('filterUrgency').value;
   const fImp=document.getElementById('filterImportance').value;
   const fDue=document.getElementById('filterDue').value;
   const today=new Date().toISOString().slice(0,10);
-  filtered=filtered.filter(t=>{
+
+  function passes(t){
+    if(t.status!=='open') return false;
     if(fProj!=='all' && t.project!==fProj) return false;
     if(fUrg!=='all' && t.urgency!==fUrg) return false;
     if(fImp!=='all' && t.importance!==fImp) return false;
     if(fDue==='overdue' && t.dueDate && t.dueDate>=today) return false;
     if(fDue==='today' && t.dueDate!==today) return false;
     return true;
-  });
-  filtered.sort((a,b)=>{
-    const u=priorityVal(b.urgency)-priorityVal(a.urgency);
-    if(u!==0) return u;
-    return priorityVal(b.importance)-priorityVal(a.importance);
-  });
-  filtered.forEach(t=>{
+  }
+
+  function sortTasks(arr){
+    arr.sort((a,b)=>{
+      const u=priorityVal(b.urgency)-priorityVal(a.urgency);
+      if(u!==0) return u;
+      return priorityVal(b.importance)-priorityVal(a.importance);
+    });
+    arr.forEach(t=>{ if(t.subtasks) sortTasks(t.subtasks); });
+  }
+
+  sortTasks(workTasks);
+  forEachTask((t,depth)=>{
+    if(!passes(t)) return;
     const row=document.createElement('div');
     row.className='task-row '+urgencyClass(t.urgency)+' '+importanceClass(t.importance);
-    row.title=t.notes||"";
+    row.style.marginLeft=(depth)+'rem';
+    row.title=t.notes||'';
+    row.draggable=true;
+    row.ondragstart=ev=>startDrag(ev,t.id);
+    row.ondragover=allowDrop;
+    row.ondrop=ev=>dropOnTask(ev,t.id);
     row.innerHTML=`<div>${t.name}</div><div>${t.project}</div><div>${t.dueDate||''}</div><div>${t.importance}</div><div>${t.urgency}</div>`;
     const ctrl=document.createElement('div'); ctrl.className='controls';
     const comp=document.createElement('button'); comp.textContent='Complete'; comp.onclick=()=>completeTask(t.id);
@@ -295,33 +509,219 @@ function renderTasks(){
     ctrl.appendChild(comp); ctrl.appendChild(edit); ctrl.appendChild(sub); ctrl.appendChild(del);
     row.appendChild(ctrl);
     list.appendChild(row);
-    if(t.subtasks){
-      let subs=t.subtasks.filter(st=>st.status==='open');
-      subs=subs.filter(st=>{
-        if(fProj!=='all' && st.project!==fProj) return false;
-        if(fUrg!=='all' && st.urgency!==fUrg) return false;
-        if(fImp!=='all' && st.importance!==fImp) return false;
-        if(fDue==='overdue' && st.dueDate && st.dueDate>=today) return false;
-        if(fDue==='today' && st.dueDate!==today) return false;
-        return true;
-      });
-      subs.sort((a,b)=>{
-        const u=priorityVal(b.urgency)-priorityVal(a.urgency);
-        if(u!==0) return u;
-        return priorityVal(b.importance)-priorityVal(a.importance);
-      });
-      subs.forEach(st=>{
-        const srow=document.createElement('div');
-        srow.className='task-row subtask '+urgencyClass(st.urgency)+' '+importanceClass(st.importance);
-        srow.title=st.notes||'';
-        srow.innerHTML=`<div>${st.name}</div><div>${st.project}</div><div>${st.dueDate||''}</div><div>${st.importance}</div><div>${st.urgency}</div>`;
-        const sctrl=document.createElement('div'); sctrl.className='controls';
-        const scomp=document.createElement('button'); scomp.textContent='Complete'; scomp.onclick=()=>{st.status='closed'; saveData(); renderTasks();};
-        const sdel=document.createElement('button'); sdel.textContent='Delete'; sdel.onclick=()=>{t.subtasks=t.subtasks.filter(x=>x!==st); saveData(); renderTasks();};
-        sctrl.appendChild(scomp); sctrl.appendChild(sdel); srow.appendChild(sctrl); list.appendChild(srow);
-      });
-    }
   });
+  renderCalendarTasks();
+}
+
+function renderCalendarTasks(){
+  const cont=document.getElementById('calendarTaskList');
+  cont.innerHTML='';
+  forEachTask(t=>{
+    if(t.status!=='open') return;
+    const div=document.createElement('div');
+    div.className='fc-task';
+    div.textContent=t.name;
+    div.dataset.id=t.id;
+    div.dataset.title=t.name;
+    cont.appendChild(div);
+  });
+  new FullCalendar.Draggable(cont,{itemSelector:'.fc-task',eventData:el=>({title:el.dataset.title,taskId:el.dataset.id})});
+}
+
+function initCalendar(){
+  const el=document.getElementById('calendar');
+  calendar=new FullCalendar.Calendar(el,{
+    initialView:'dayGridMonth',
+    height:'auto',
+    editable:true,
+    droppable:true,
+    eventDurationEditable:true,
+    events:calendarEvents,
+    eventReceive:info=>{
+      info.event.setProp('id',String(calendarNextId++));
+      info.event.setExtendedProp('taskId',info.draggedEl.dataset.id);
+      saveCalendar();
+    },
+    eventDrop:saveCalendar,
+    eventResize:saveCalendar,
+    eventClick:info=>{ if(confirm('Remove this scheduled task?')){ info.event.remove(); saveCalendar(); } }
+  });
+  calendar.render();
+}
+
+function saveCalendar(){
+  calendarEvents=calendar.getEvents().map(ev=>({id:ev.id,title:ev.title,start:ev.startStr,end:ev.endStr,taskId:ev.extendedProps.taskId||''}));
+  saveData();
+}
+
+function deleteCalendarEvents(taskId){
+  if(!calendar) return;
+  calendar.getEvents().forEach(ev=>{if(ev.extendedProps.taskId===taskId) ev.remove();});
+  saveCalendar();
+}
+
+function meetingStatus(date){
+  const today=new Date().toISOString().slice(0,10);
+  if(!date) return 'meeting-upcoming';
+  if(date<today) return 'meeting-past';
+  if(date===today) return 'meeting-today';
+  return 'meeting-upcoming';
+}
+
+function renderMeetings(){
+  const colsCont=document.getElementById('meetingColumns');
+  const allCont=document.getElementById('allMeetings');
+  colsCont.innerHTML='';
+  allCont.innerHTML='';
+  const projects=[...workProjects.map(p=>p.name), 'Ad Hoc'];
+  projects.forEach(name=>{
+    const col=document.createElement('div');
+    col.className='meeting-col';
+    col.innerHTML='<h3>'+name+'</h3>';
+    meetings.filter(m=> (m.project||'Ad Hoc')===name).forEach(m=>{
+      const card=document.createElement('div');
+      card.className='meeting-card '+meetingStatus(m.date);
+      card.textContent=m.title;
+      card.onclick=()=>openMeetingModal(m.id);
+      col.appendChild(card);
+      allCont.appendChild(card.cloneNode(true));
+    });
+    colsCont.appendChild(col);
+  });
+}
+
+function openMeetingModal(id, data){
+  if(id){
+    currentMeeting=meetings.find(m=>m.id===id);
+  }else{
+    currentMeeting=data||{id:String(meetingNextId++),title:'',project:'',date:'',attendees:'',content:'',outcomes:'',attachments:[],followupOf:null};
+  }
+  const projSel=document.getElementById('meetProject');
+  projSel.innerHTML='<option value="">Ad Hoc</option>';
+  workProjects.forEach(p=>{const o=document.createElement('option');o.value=p.name;o.textContent=p.name;projSel.appendChild(o);});
+  document.getElementById('meetTitle').value=currentMeeting.title;
+  document.getElementById('meetProject').value=currentMeeting.project;
+  document.getElementById('meetDate').value=currentMeeting.date;
+  document.getElementById('meetAttendees').value=currentMeeting.attendees;
+  document.getElementById('meetContent').value=currentMeeting.content;
+  document.getElementById('meetOutcomes').value=currentMeeting.outcomes;
+  renderAttachments();
+  document.getElementById('meetingModal').classList.remove('hidden');
+}
+
+function closeMeetingModal(){
+  document.getElementById('meetingModal').classList.add('hidden');
+  currentMeeting=null;
+}
+
+function renderAttachments(){
+  const list=document.getElementById('attachList');
+  list.innerHTML='';
+  if(!currentMeeting.attachments) currentMeeting.attachments=[];
+  currentMeeting.attachments.forEach((a,i)=>{
+    const div=document.createElement('div');
+    const link=document.createElement('a');
+    link.href=a; link.textContent=a; link.target='_blank';
+    const del=document.createElement('button');
+    del.textContent='x';
+    del.style.marginLeft='0.25rem';
+    del.onclick=()=>{currentMeeting.attachments.splice(i,1);renderAttachments();};
+    div.appendChild(link); div.appendChild(del);
+    list.appendChild(div);
+  });
+}
+
+function addAttachment(){
+  const url=document.getElementById('attachInput').value.trim();
+  if(url){ currentMeeting.attachments.push(url); document.getElementById('attachInput').value=''; renderAttachments(); }
+}
+
+function saveMeeting(){
+  currentMeeting.title=document.getElementById('meetTitle').value.trim();
+  currentMeeting.project=document.getElementById('meetProject').value;
+  currentMeeting.date=document.getElementById('meetDate').value;
+  currentMeeting.attendees=document.getElementById('meetAttendees').value;
+  currentMeeting.content=document.getElementById('meetContent').value;
+  currentMeeting.outcomes=document.getElementById('meetOutcomes').value;
+  if(!meetings.find(m=>m.id===currentMeeting.id)){
+    meetings.push(currentMeeting);
+  }
+  saveData();
+  renderMeetings();
+  closeMeetingModal();
+}
+
+function deleteMeeting(){
+  if(!currentMeeting) return;
+  if(confirm('Delete meeting?')){
+    meetings=meetings.filter(m=>m!==currentMeeting);
+    saveData();
+    renderMeetings();
+    closeMeetingModal();
+  }
+}
+
+function addFollowUp(){
+  const follow={id:String(meetingNextId++),title:currentMeeting.title,project:currentMeeting.project,date:'',attendees:currentMeeting.attendees,content:currentMeeting.outcomes, outcomes:'',attachments:[],followupOf:currentMeeting.id};
+  openMeetingModal(null, follow);
+}
+
+function addOutcomeTask(){
+  const ta=document.getElementById('meetOutcomes');
+  const text=ta.value.substring(ta.selectionStart, ta.selectionEnd) || ta.value;
+  if(!text.trim()) return;
+  const task={name:text.trim(),project:currentMeeting.project,dueDate:'',importance:'Medium',urgency:'Medium',notes:'from meeting '+currentMeeting.id};
+  openTaskModal(task);
+}
+
+let pendingTask=null;
+let editingTask=null;
+let modalParent=null;
+function openTaskModal(defaults={}, isEdit=false, parent=null){
+  editingTask=isEdit?defaults:null;
+  modalParent=parent;
+  pendingTask=Object.assign({name:'',project:'',dueDate:'',importance:'Medium',urgency:'Medium',notes:''}, isEdit?defaults||{}:defaults||{});
+  const projSel=document.getElementById('taskModalProject');
+  projSel.innerHTML='<option value="">Ad Hoc</option>';
+  workProjects.forEach(p=>{const o=document.createElement('option');o.value=p.name;o.textContent=p.name;projSel.appendChild(o);});
+  document.getElementById('taskModalName').value=pendingTask.name;
+  document.getElementById('taskModalProject').value=pendingTask.project;
+  document.getElementById('taskModalDue').value=pendingTask.dueDate;
+  document.getElementById('taskModalImportance').value=pendingTask.importance;
+  document.getElementById('taskModalUrgency').value=pendingTask.urgency;
+  document.getElementById('taskModalNotes').value=pendingTask.notes||'';
+  document.getElementById('taskModal').classList.remove('hidden');
+}
+
+function closeTaskModal(){
+  document.getElementById('taskModal').classList.add('hidden');
+  pendingTask=null;
+  editingTask=null;
+  modalParent=null;
+}
+
+function saveTaskModal(){
+  if(!pendingTask) return;
+  const target = editingTask || pendingTask;
+  target.name=document.getElementById('taskModalName').value.trim();
+  target.project=document.getElementById('taskModalProject').value;
+  target.dueDate=document.getElementById('taskModalDue').value;
+  target.importance=document.getElementById('taskModalImportance').value;
+  target.urgency=document.getElementById('taskModalUrgency').value;
+  target.notes=document.getElementById('taskModalNotes').value;
+  if(!editingTask){
+    const full={id:String(workNextId).padStart(8,'0'),parent:modalParent?modalParent.id:null,recurring:false,frequency:null,interval:null,from:null,status:'open',subtasks:[],...target};
+    workNextId++;
+    if(modalParent){
+      modalParent.subtasks=modalParent.subtasks||[];
+      modalParent.subtasks.push(full);
+    }else{
+      workTasks.push(full);
+    }
+  }
+  saveData();
+  renderTasks();
+  closeTaskModal();
 }
 
 loadData();
