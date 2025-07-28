@@ -41,6 +41,16 @@ section { padding:1rem; border-bottom:10px solid pink; }
 #calendar{flex:1 1 300px;min-width:300px;}
 #calendarTaskList{flex:1 1 200px;min-width:200px;border:1px solid #ccc;padding:0.5rem;max-height:400px;overflow-y:auto;}
 .fc-task{background:#f4f4f4;margin:0.25rem 0;padding:0.25rem;border:1px solid #ccc;cursor:grab;}
+.subtoggle{font-size:0.9rem;margin-top:0.5rem;}
+.meeting-grid{display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-start;}
+.meeting-col{flex:1 1 200px;min-width:200px;}
+.meeting-card{border:1px solid #ccc;padding:0.5rem;margin:0.25rem 0;border-radius:4px;cursor:pointer;}
+.meeting-past{background:#f0f0f0;}
+.meeting-today{background:#d0ffd0;}
+.meeting-upcoming{background:#f0f8ff;}
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);}
+.modal-content{background:#fff;padding:1rem;border-radius:4px;max-width:90%;width:320px;}
+.modal-content input,.modal-content textarea,.modal-content select{width:100%;margin-bottom:0.5rem;}
 @media (max-width: 600px) {
   html { font-size: 14px; }
 }
@@ -131,11 +141,37 @@ section { padding:1rem; border-bottom:10px solid pink; }
   <section>
     <div class="toggle section-header" onclick="toggle('meetingSection')">Meetings</div>
     <div id="meetingSection" class="hidden">
-      <p>Coming soon...</p>
+      <button onclick="openMeetingModal()">Add Meeting</button>
+      <div id="meetingColumns" class="meeting-grid"></div>
+      <div style="margin-top:1rem;">
+        <div class="toggle subtoggle" onclick="toggle('allMeetings')">View All Meetings</div>
+        <div id="allMeetings" class="hidden meeting-grid"></div>
+      </div>
     </div>
   </section>
 
-<script>
+  <div id="meetingModal" class="modal hidden">
+    <div class="modal-content">
+      <label>Title<input id="meetTitle"></label>
+      <label>Project<select id="meetProject"></select></label>
+      <label>Date<input type="date" id="meetDate"></label>
+      <label>Attendees<textarea id="meetAttendees"></textarea></label>
+      <label>Content<textarea id="meetContent"></textarea></label>
+      <label>Outcomes<textarea id="meetOutcomes"></textarea></label>
+      <div id="attachList"></div>
+      <input id="attachInput" placeholder="Attachment URL"><button onclick="addAttachment()">Add</button>
+      <div style="text-align:right;margin-top:0.5rem;">
+        <button onclick="saveMeeting()">Save</button>
+        <button onclick="deleteMeeting()">Delete</button>
+        <button onclick="addFollowUp()">Add Follow-Up</button>
+        <button onclick="addOutcomeTask()">Add as Task</button>
+        <button onclick="closeMeetingModal()">Close</button>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <script>
 let dataStore = {};
 let workProjects = [];
 let workTasks = [];
@@ -143,6 +179,9 @@ let workNextId = 1;
 let calendarEvents = [];
 let calendarNextId = 1;
 let calendar;
+let meetings = [];
+let meetingNextId = 1;
+let currentMeeting = null;
 
 function toggle(id){
   document.getElementById(id).classList.toggle('hidden');
@@ -167,9 +206,12 @@ async function loadData(){
     workNextId = dataStore.workNextId || 1;
     calendarEvents = dataStore.calendarEvents || [];
     calendarNextId = dataStore.calendarNextId || 1;
+    meetings = dataStore.meetings || [];
+    meetingNextId = dataStore.meetingNextId || 1;
     renderProjects();
     renderTasks();
     renderCalendarTasks();
+    renderMeetings();
     initCalendar();
   }catch(e){ console.error('load fail',e); }
 }
@@ -180,6 +222,8 @@ async function saveData(){
   dataStore.workNextId = workNextId;
   dataStore.calendarEvents = calendarEvents;
   dataStore.calendarNextId = calendarNextId;
+  dataStore.meetings = meetings;
+  dataStore.meetingNextId = meetingNextId;
   try{
     await fetch('/api/work-data',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(dataStore)});
   }catch(e){ console.error('save fail',e); }
@@ -192,6 +236,7 @@ function addWorkProject(){
   workProjects.push({name,color});
   document.getElementById('workProjectName').value='';
   renderProjects();
+  renderMeetings();
   saveData();
 }
 
@@ -403,6 +448,124 @@ function initCalendar(){
 function saveCalendar(){
   calendarEvents=calendar.getEvents().map(ev=>({id:ev.id,title:ev.title,start:ev.startStr,end:ev.endStr,taskId:ev.extendedProps.taskId||''}));
   saveData();
+}
+
+function meetingStatus(date){
+  const today=new Date().toISOString().slice(0,10);
+  if(!date) return 'meeting-upcoming';
+  if(date<today) return 'meeting-past';
+  if(date===today) return 'meeting-today';
+  return 'meeting-upcoming';
+}
+
+function renderMeetings(){
+  const colsCont=document.getElementById('meetingColumns');
+  const allCont=document.getElementById('allMeetings');
+  colsCont.innerHTML='';
+  allCont.innerHTML='';
+  const projects=[...workProjects.map(p=>p.name), 'Ad Hoc'];
+  projects.forEach(name=>{
+    const col=document.createElement('div');
+    col.className='meeting-col';
+    col.innerHTML='<h3>'+name+'</h3>';
+    meetings.filter(m=> (m.project||'Ad Hoc')===name).forEach(m=>{
+      const card=document.createElement('div');
+      card.className='meeting-card '+meetingStatus(m.date);
+      card.textContent=m.title;
+      card.onclick=()=>openMeetingModal(m.id);
+      col.appendChild(card);
+      allCont.appendChild(card.cloneNode(true));
+    });
+    colsCont.appendChild(col);
+  });
+}
+
+function openMeetingModal(id){
+  if(id){
+    currentMeeting=meetings.find(m=>m.id===id);
+  }else{
+    currentMeeting={id:String(meetingNextId++),title:'',project:'',date:'',attendees:'',content:'',outcomes:'',attachments:[],followupOf:null};
+    meetings.push(currentMeeting);
+  }
+  const projSel=document.getElementById('meetProject');
+  projSel.innerHTML='<option value="">Ad Hoc</option>';
+  workProjects.forEach(p=>{const o=document.createElement('option');o.value=p.name;o.textContent=p.name;projSel.appendChild(o);});
+  document.getElementById('meetTitle').value=currentMeeting.title;
+  document.getElementById('meetProject').value=currentMeeting.project;
+  document.getElementById('meetDate').value=currentMeeting.date;
+  document.getElementById('meetAttendees').value=currentMeeting.attendees;
+  document.getElementById('meetContent').value=currentMeeting.content;
+  document.getElementById('meetOutcomes').value=currentMeeting.outcomes;
+  renderAttachments();
+  document.getElementById('meetingModal').classList.remove('hidden');
+}
+
+function closeMeetingModal(){
+  document.getElementById('meetingModal').classList.add('hidden');
+}
+
+function renderAttachments(){
+  const list=document.getElementById('attachList');
+  list.innerHTML='';
+  if(!currentMeeting.attachments) currentMeeting.attachments=[];
+  currentMeeting.attachments.forEach((a,i)=>{
+    const div=document.createElement('div');
+    const link=document.createElement('a');
+    link.href=a; link.textContent=a; link.target='_blank';
+    const del=document.createElement('button');
+    del.textContent='x';
+    del.style.marginLeft='0.25rem';
+    del.onclick=()=>{currentMeeting.attachments.splice(i,1);renderAttachments();};
+    div.appendChild(link); div.appendChild(del);
+    list.appendChild(div);
+  });
+}
+
+function addAttachment(){
+  const url=document.getElementById('attachInput').value.trim();
+  if(url){ currentMeeting.attachments.push(url); document.getElementById('attachInput').value=''; renderAttachments(); }
+}
+
+function saveMeeting(){
+  currentMeeting.title=document.getElementById('meetTitle').value.trim();
+  currentMeeting.project=document.getElementById('meetProject').value;
+  currentMeeting.date=document.getElementById('meetDate').value;
+  currentMeeting.attendees=document.getElementById('meetAttendees').value;
+  currentMeeting.content=document.getElementById('meetContent').value;
+  currentMeeting.outcomes=document.getElementById('meetOutcomes').value;
+  saveData();
+  renderMeetings();
+  closeMeetingModal();
+}
+
+function deleteMeeting(){
+  if(!currentMeeting) return;
+  if(confirm('Delete meeting?')){
+    meetings=meetings.filter(m=>m!==currentMeeting);
+    saveData();
+    renderMeetings();
+    closeMeetingModal();
+  }
+}
+
+function addFollowUp(){
+  const date=prompt('Follow-up date (YYYY-MM-DD)', '');
+  if(!date) return;
+  const follow={id:String(meetingNextId++),title:currentMeeting.title,project:currentMeeting.project,date,attendees:currentMeeting.attendees,content:currentMeeting.outcomes, outcomes:'',attachments:[],followupOf:currentMeeting.id};
+  meetings.push(follow);
+  saveData();
+  renderMeetings();
+  alert('Follow-up created');
+}
+
+function addOutcomeTask(){
+  const ta=document.getElementById('meetOutcomes');
+  const text=ta.value.substring(ta.selectionStart, ta.selectionEnd) || ta.value;
+  if(!text.trim()) return;
+  const task={id:String(workNextId).padStart(8,'0'),name:text.trim(),project:currentMeeting.project,dueDate:'',importance:'Medium',urgency:'Medium',recurring:false,frequency:null,interval:null,from:null,status:'open',subtasks:[],notes:'from meeting '+currentMeeting.id};
+  workNextId++; workTasks.push(task);
+  saveData();
+  renderTasks();
 }
 
 loadData();
