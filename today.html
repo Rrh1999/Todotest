@@ -41,6 +41,10 @@ header {
     <ul id="dueList" class="task-list"></ul>
     <label style="display:block;margin-top:0.5rem;"><input type="checkbox" id="workToggle"> Show Work Tasks</label>
     <ul id="workTaskList" class="task-list hidden"></ul>
+    <label style="display:block;margin-top:0.5rem;"><input type="checkbox" id="stretchToggle"> Show Stretch Tasks</label>
+    <ul id="stretchTaskList" class="task-list hidden"></ul>
+    <label style="display:block;margin-top:0.5rem;"><input type="checkbox" id="bigToggle"> Show Big Tasks</label>
+    <ul id="bigTaskList" class="task-list hidden"></ul>
   </div>
   <div id="main">
     <h2>Today</h2>
@@ -49,7 +53,7 @@ header {
   </div>
 </div>
 <script>
-let projects=[], weeklyTasks=[], oneOffTasks=[], recurringTasks=[], deletedTasks=[], shoppingList=[], longTermList=[], generalList=[];
+let projects=[], weeklyTasks=[], oneOffTasks=[], recurringTasks=[], stretchTasks=[], bigTasks=[], deletedTasks=[], shoppingList=[], longTermList=[], generalList=[];
 let todayList=[], todayTasks=[];
 let overdueTasks=[], dueTasks=[];
 let nextId=1;
@@ -63,7 +67,7 @@ async function loadData(){
     if(res.ok){
       const obj=await res.json();
       projects=obj.projects||[];weeklyTasks=obj.weeklyTasks||[];oneOffTasks=obj.oneOffTasks||[];recurringTasks=obj.recurringTasks||[];
-      deletedTasks=obj.deletedTasks||[];shoppingList=obj.shoppingList||[];longTermList=obj.longTermList||[];
+      stretchTasks=obj.stretchTasks||[];bigTasks=obj.bigTasks||[];deletedTasks=obj.deletedTasks||[];shoppingList=obj.shoppingList||[];longTermList=obj.longTermList||[];
       generalList=obj.generalList||[];todayList=obj.todayList||[];nextId=obj.nextId||1;
     }
     const resW=await fetch('/api/work-data');
@@ -73,7 +77,7 @@ async function loadData(){
     }
   }catch(e){console.error('Failed to load data',e);}
 }
-async function saveData(){const data={projects,weeklyTasks,oneOffTasks,recurringTasks,deletedTasks,shoppingList,longTermList,generalList,todayList,nextId};try{await fetch('/api/index-data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}catch(e){console.error('Failed to save data',e);}}
+async function saveData(){const data={projects,weeklyTasks,oneOffTasks,recurringTasks,stretchTasks,bigTasks,deletedTasks,shoppingList,longTermList,generalList,todayList,nextId};try{await fetch('/api/index-data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}catch(e){console.error('Failed to save data',e);}}
 async function saveWorkData(){
   workDataStore.workTasks = workTasks;
   try{
@@ -137,11 +141,19 @@ function rebuildToday(){
     else if(r.type==='recurring') arr=recurringTasks;
     else if(r.type==='weekly') arr=weeklyTasks;
     else if(r.type==='work') arr=workTasks;
+    else if(r.type==='stretch') arr=stretchTasks;
+    else if(r.type==='big') arr=bigTasks;
     else return;
     const task=arr.find(t=>t.id===r.id);
     if(!task) return;
     if(r.type==='work'){
       todayTasks.push({category:'work',type:'work',item:task});
+      return;
+    } else if(r.type==='stretch'){
+      todayTasks.push({category:'stretch',type:'stretch',item:task});
+      return;
+    } else if(r.type==='big'){
+      todayTasks.push({category:'big',type:'big',item:task});
       return;
     }
     let i=overdueTasks.findIndex(o=>o.type===r.type&&o.item.id===r.id);
@@ -192,6 +204,8 @@ function renderSide(){
     due.appendChild(li);
   });
   if(document.getElementById('workToggle').checked) renderWorkTasks();
+  if(document.getElementById('stretchToggle').checked) renderStretchTasks();
+  if(document.getElementById('bigToggle').checked) renderBigTasks();
 }
 function renderWorkTasks(){
   const ul=document.getElementById('workTaskList');
@@ -202,6 +216,32 @@ function renderWorkTasks(){
     const b=document.createElement('button');
     b.textContent='Add';
     b.onclick=()=>addWorkToToday(t.id);
+    li.appendChild(b);
+    ul.appendChild(li);
+  });
+}
+function renderStretchTasks(){
+  const ul=document.getElementById('stretchTaskList');
+  ul.innerHTML='';
+  stretchTasks.filter(t=>t.status==='open').forEach(t=>{
+    const li=document.createElement('li');
+    li.textContent=`${t.name} (${t.project})`;
+    const b=document.createElement('button');
+    b.textContent='Add';
+    b.onclick=()=>addStretchToToday(t.id);
+    li.appendChild(b);
+    ul.appendChild(li);
+  });
+}
+function renderBigTasks(){
+  const ul=document.getElementById('bigTaskList');
+  ul.innerHTML='';
+  bigTasks.filter(t=>t.status==='open').forEach(t=>{
+    const li=document.createElement('li');
+    li.textContent=`${t.name} (${t.project})`;
+    const b=document.createElement('button');
+    b.textContent='Add';
+    b.onclick=()=>addBigToToday(t.id);
     li.appendChild(b);
     ul.appendChild(li);
   });
@@ -220,6 +260,22 @@ function addWorkToToday(id){
   if(!task) return;
   todayTasks.push({category:'work',type:'work',item:task});
   todayList.push({type:'work',id});
+  saveData();
+  renderToday();
+}
+function addStretchToToday(id){
+  const task=stretchTasks.find(t=>t.id===id);
+  if(!task) return;
+  todayTasks.push({category:'stretch',type:'stretch',item:task});
+  todayList.push({type:'stretch',id});
+  saveData();
+  renderToday();
+}
+function addBigToToday(id){
+  const task=bigTasks.find(t=>t.id===id);
+  if(!task) return;
+  todayTasks.push({category:'big',type:'big',item:task});
+  todayList.push({type:'big',id});
   saveData();
   renderToday();
 }
@@ -269,6 +325,13 @@ function completeToday(idx){
     }
     saveWorkData();
   }
+  }else if(t.type==='stretch'){
+    t.item.completedDates.push(formatISO(now));
+  }else if(t.type==='big'){
+    t.item.completedDates.push(formatISO(now));
+    t.item.status='closed';
+    t.item.closedDate=formatISO(now);
+  }
   if(t.category==='overdue'){/* do nothing */}
   else if(t.category==='due'){/* keep order */}
   saveData();
@@ -280,6 +343,14 @@ document.getElementById('todayList').addEventListener('dragstart',e=>{if(e.targe
 document.getElementById('workToggle').addEventListener('change',e=>{
   document.getElementById('workTaskList').classList.toggle('hidden',!e.target.checked);
   if(e.target.checked) renderWorkTasks();
+});
+document.getElementById('stretchToggle').addEventListener('change',e=>{
+  document.getElementById('stretchTaskList').classList.toggle('hidden',!e.target.checked);
+  if(e.target.checked) renderStretchTasks();
+});
+document.getElementById('bigToggle').addEventListener('change',e=>{
+  document.getElementById('bigTaskList').classList.toggle('hidden',!e.target.checked);
+  if(e.target.checked) renderBigTasks();
 });
 async function init(){await loadData();categorize();rebuildToday();renderSide();renderToday();}
 init();

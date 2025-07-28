@@ -19,6 +19,8 @@ let indexData = {
   weeklyTasks: [],
   oneOffTasks: [],
   recurringTasks: [],
+  stretchTasks: [],
+  bigTasks: [],
   deletedTasks: [],
   shoppingList: [],
   longTermList: [],

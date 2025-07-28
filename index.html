@@ -60,7 +60,8 @@ section {
   justify-content: center;
 }
 .task-info { display: flex; flex-direction: column; text-align: left; align-items: flex-start; justify-content: flex-start; }
-.task-info div { padding: 0.05rem 0; }
+.task-info div { padding: 0.05rem 0; border:none; }
+.task-meta.small { font-size: 0.6rem; }
 .task-name { font-size: 0.9rem; }
 .task-meta { font-size: 0.7rem; }
 .circle {
@@ -241,6 +242,65 @@ section {
     </div><!-- end recurringSection -->
   </section>
 
+  <section>
+    <div class="toggle section-header" onclick="toggle('stretchSection')">Stretch Tasks</div>
+    <div id="stretchSection">
+    <div id="stretchList"></div>
+    <div class="toggle add-toggle" onclick="toggle('addStretch')">Add Stretch Task</div>
+    <div id="addStretch" class="hidden subtoggle form-grid">
+      <label>Name<input type="text" id="stretchName"></label>
+      <label>Project<select id="stretchProject"></select></label>
+      <label>Importance<select id="stretchImportance">
+        <option>High</option>
+        <option>High/Medium</option>
+        <option>Medium</option>
+        <option>Medium/Low</option>
+        <option>Low</option>
+      </select></label>
+      <label>Urgency<select id="stretchUrgency">
+        <option>High</option>
+        <option>High/Medium</option>
+        <option>Medium</option>
+        <option>Medium/Low</option>
+        <option>Low</option>
+      </select></label>
+      <div style="grid-column:1/-1;text-align:center;">
+        <button onclick="addStretchTask()">Submit</button>
+      </div>
+    </div>
+    </div><!-- end stretchSection -->
+  </section>
+
+  <section>
+    <div class="toggle section-header" onclick="toggle('bigSection')">Big Tasks &amp; Goals</div>
+    <div id="bigSection">
+    <div id="bigList"></div>
+    <div class="toggle add-toggle" onclick="toggle('addBig')">Add Big Task</div>
+    <div id="addBig" class="hidden subtoggle form-grid">
+      <label>Name<input type="text" id="bigName"></label>
+      <label>Project<select id="bigProject"></select></label>
+      <label>Importance<select id="bigImportance">
+        <option>High</option>
+        <option>High/Medium</option>
+        <option>Medium</option>
+        <option>Medium/Low</option>
+        <option>Low</option>
+      </select></label>
+      <label>Urgency<select id="bigUrgency">
+        <option>High</option>
+        <option>High/Medium</option>
+        <option>Medium</option>
+        <option>Medium/Low</option>
+        <option>Low</option>
+      </select></label>
+      <label>Due Date<input type="date" id="bigDue"></label>
+      <div style="grid-column:1/-1;text-align:center;">
+        <button onclick="addBigTask()">Submit</button>
+      </div>
+    </div>
+    </div><!-- end bigSection -->
+  </section>
+
 
 
   <script>
@@ -248,6 +308,8 @@ let projects = []; // {name, color, closed:false}
 let weeklyTasks = [];
 let oneOffTasks = [];
 let recurringTasks = [];
+let stretchTasks = [];
+let bigTasks = [];
 let deletedTasks = [];
 let shoppingList = [];
 let longTermList = [];
@@ -257,7 +319,7 @@ let nextId = 1;
 let currentWeekStart = startOfWeek(new Date());
 
 async function saveData() {
-  const data = { projects, weeklyTasks, oneOffTasks, recurringTasks, deletedTasks, shoppingList, longTermList, generalList, todayList, nextId };
+  const data = { projects, weeklyTasks, oneOffTasks, recurringTasks, stretchTasks, bigTasks, deletedTasks, shoppingList, longTermList, generalList, todayList, nextId };
   try {
     await fetch('/api/index-data', {
       method: 'POST',
@@ -278,6 +340,8 @@ async function loadData() {
     weeklyTasks = obj.weeklyTasks || [];
     oneOffTasks = obj.oneOffTasks || [];
     recurringTasks = obj.recurringTasks || [];
+    stretchTasks = obj.stretchTasks || [];
+    bigTasks = obj.bigTasks || [];
     deletedTasks = obj.deletedTasks || [];
     shoppingList = obj.shoppingList || [];
     longTermList = obj.longTermList || [];
@@ -370,7 +434,9 @@ function renderProjects() {
   const selects = [
     document.getElementById('weeklyProject'),
     document.getElementById('oneOffProject'),
-    document.getElementById('recurringProject')
+    document.getElementById('recurringProject'),
+    document.getElementById('stretchProject'),
+    document.getElementById('bigProject')
   ];
   selects.forEach(sel => sel.innerHTML = '');
   projects.forEach(p => {
@@ -401,7 +467,7 @@ function renderProjects() {
 }
 
 function hasOpenTasks(projectName) {
-  const taskLists = [weeklyTasks, oneOffTasks, recurringTasks];
+  const taskLists = [weeklyTasks, oneOffTasks, recurringTasks, stretchTasks, bigTasks];
   if (taskLists.some(list => list.some(t => t.project === projectName && t.status === 'open')))
     return true;
   return shoppingList.some(i => i.project === projectName && !i.bought);
@@ -492,13 +558,17 @@ function taskCell(task) {
   nameDiv.className = 'task-name';
   nameDiv.textContent = task.name;
 
+  if ((task.project || '').toLowerCase().includes('self care')) {
+    nameDiv.style.fontWeight = 'bold';
+  }
+
   const projectDiv = document.createElement('div');
   projectDiv.className = 'task-meta';
   projectDiv.style.color = color;
   projectDiv.textContent = task.project;
 
   const metaDiv = document.createElement('div');
-  metaDiv.className = 'task-meta';
+  metaDiv.className = 'task-meta small';
   metaDiv.textContent = `Importance: ${task.importance} | Urgency: ${task.urgency}`;
 
   const controls = document.createElement('div');
@@ -676,6 +746,193 @@ function editOneOffDue(id) {
   }
 }
 
+function addStretchTask() {
+  const name = document.getElementById('stretchName').value;
+  const project = document.getElementById('stretchProject').value;
+  const importance = document.getElementById('stretchImportance').value;
+  const urgency = document.getElementById('stretchUrgency').value;
+  if (!name) return;
+  const proj = projects.find(p => p.name === project);
+  if (proj && proj.closed) return;
+  const task = {
+    id: String(nextId).padStart(8, '0'),
+    name, project, importance, urgency,
+    completedDates: [],
+    status: 'open'
+  };
+  nextId++;
+  stretchTasks.push(task);
+  document.getElementById('stretchName').value = '';
+  showMessage("Task added");
+  saveData();
+  renderStretch();
+}
+
+function renderStretch() {
+  const list = document.getElementById('stretchList');
+  list.innerHTML = '';
+  const open = stretchTasks.filter(t => t.status === 'open');
+  if (open.length === 0) { list.textContent = 'No stretch tasks'; return; }
+  const table = document.createElement('table');
+  table.className = 'task-table';
+  const head = document.createElement('tr');
+  head.innerHTML = '<th>Task</th><th>Project</th><th>Last Done</th><th></th>';
+  table.appendChild(head);
+  open.forEach(t => {
+    const tr = document.createElement('tr');
+    const proj = projects.find(p => p.name === t.project);
+    const color = proj ? proj.color : '#000';
+    const last = t.completedDates.length ? formatUK(t.completedDates[t.completedDates.length-1]) : '';
+    tr.innerHTML = `<td>${t.name}</td><td style="color:${color}">${t.project}</td><td>${last}</td>`;
+    const td = document.createElement('td');
+    const log = document.createElement('button');
+    log.textContent = 'Log';
+    log.onclick = () => logStretch(t.id);
+    const del = document.createElement('button');
+    del.textContent = 'Delete';
+    del.onclick = () => deleteStretch(t.id);
+    td.appendChild(log);
+    td.appendChild(del);
+    tr.appendChild(td);
+    table.appendChild(tr);
+  });
+  list.appendChild(table);
+}
+
+function logStretch(id) {
+  const task = stretchTasks.find(t => t.id === id);
+  if (!task) return;
+  task.completedDates.push(formatISO(new Date()));
+  saveData();
+  renderStretch();
+}
+
+function deleteStretch(id) {
+  const idx = stretchTasks.findIndex(t => t.id === id);
+  if (idx === -1) return;
+  if (confirm('Delete this task permanently?')) {
+    deletedTasks.push(stretchTasks[idx]);
+    stretchTasks.splice(idx, 1);
+    saveData();
+    renderStretch();
+    renderDeleted();
+  }
+}
+
+function addBigTask() {
+  const name = document.getElementById('bigName').value;
+  const project = document.getElementById('bigProject').value;
+  const importance = document.getElementById('bigImportance').value;
+  const urgency = document.getElementById('bigUrgency').value;
+  const due = document.getElementById('bigDue').value;
+  if (!name) return;
+  const proj = projects.find(p => p.name === project);
+  if (proj && proj.closed) return;
+  const task = {
+    id: String(nextId).padStart(8, '0'),
+    name, project, importance, urgency,
+    dueDate: due,
+    startDate: formatISO(new Date()),
+    status: 'open',
+    closedDate: '',
+    taskType: 'Big',
+    completedDates: [],
+    missedDates: []
+  };
+  nextId++;
+  bigTasks.push(task);
+  document.getElementById('bigName').value = '';
+  document.getElementById('bigDue').value = '';
+  showMessage("Task added");
+  saveData();
+  renderBig();
+}
+
+function renderBig() {
+  const list = document.getElementById('bigList');
+  list.innerHTML = '';
+  const open = bigTasks.filter(t => t.status === 'open');
+  if (open.length === 0) { list.textContent = 'No big tasks'; return; }
+  const table = document.createElement('table');
+  table.className = 'task-table';
+  const head = document.createElement('tr');
+  head.innerHTML = '<th>Task</th><th>Project</th><th>Due</th><th></th>';
+  table.appendChild(head);
+  open.forEach(t => {
+    const tr = document.createElement('tr');
+    const proj = projects.find(p => p.name === t.project);
+    const color = proj ? proj.color : '#000';
+    tr.innerHTML = `<td>${t.name}</td><td style="color:${color}">${t.project}</td><td>${t.dueDate?formatUK(t.dueDate):''}</td>`;
+    const td = document.createElement('td');
+    const comp = document.createElement('button');
+    comp.textContent = 'Complete';
+    comp.onclick = () => completeBig(t.id);
+    const edit = document.createElement('button');
+    edit.textContent = 'Edit Due';
+    edit.onclick = () => editBigDue(t.id);
+    const closeB = document.createElement('button');
+    closeB.textContent = 'Archive';
+    closeB.onclick = () => closeBig(t.id);
+    const del = document.createElement('button');
+    del.textContent = 'Delete';
+    del.onclick = () => deleteBig(t.id);
+    td.appendChild(comp);
+    td.appendChild(edit);
+    td.appendChild(closeB);
+    td.appendChild(del);
+    tr.appendChild(td);
+    table.appendChild(tr);
+  });
+  list.appendChild(table);
+}
+
+function completeBig(id) {
+  const task = bigTasks.find(t => t.id === id);
+  if (!task) return;
+  task.completedDates.push(formatISO(new Date()));
+  task.status = 'closed';
+  task.closedDate = formatISO(new Date());
+  saveData();
+  renderBig();
+  renderArchived();
+}
+
+function closeBig(id) {
+  const task = bigTasks.find(t => t.id === id);
+  if (!task) return;
+  if (confirm('You are about to close this task. Continue?')) {
+    task.status = 'closed';
+    task.closedDate = formatISO(new Date());
+    saveData();
+    renderBig();
+    renderArchived();
+  }
+}
+
+function deleteBig(id) {
+  const idx = bigTasks.findIndex(t => t.id === id);
+  if (idx === -1) return;
+  if (confirm('Delete this task permanently?')) {
+    deletedTasks.push(bigTasks[idx]);
+    bigTasks.splice(idx, 1);
+    saveData();
+    renderBig();
+    renderDeleted();
+    renderArchived();
+  }
+}
+
+function editBigDue(id) {
+  const task = bigTasks.find(t => t.id === id);
+  if (!task) return;
+  const newDate = prompt('New due date (YYYY-MM-DD):', task.dueDate);
+  if (newDate !== null) {
+    task.dueDate = newDate;
+    saveData();
+    renderBig();
+  }
+}
+
 
 function addRecurringTask() {
   const name = document.getElementById('recurringName').value;
@@ -829,7 +1086,7 @@ function renderArchived() {
   const list = document.getElementById('archivedList');
   if (!list) return;
   list.innerHTML = '';
-  const closed = [...weeklyTasks, ...oneOffTasks, ...recurringTasks].filter(t => t.status === 'closed');
+  const closed = [...weeklyTasks, ...oneOffTasks, ...recurringTasks, ...bigTasks].filter(t => t.status === 'closed');
   closed.forEach(t => {
     const li = document.createElement('li');
     li.textContent = `${t.name} (${t.project})`;
@@ -844,6 +1101,8 @@ async function init() {
   renderProjects();
   renderWeekly();
   renderOneOff();
+  renderStretch();
+  renderBig();
   renderRecurring();
   renderDeleted();
   renderArchived();
