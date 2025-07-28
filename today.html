@@ -47,6 +47,8 @@ header {
     <ul id="stretchTaskList" class="task-list hidden"></ul>
     <label style="display:block;margin-top:0.5rem;"><input type="checkbox" id="bigToggle"> Show Big Tasks</label>
     <ul id="bigTaskList" class="task-list hidden"></ul>
+    <label style="display:block;margin-top:0.5rem;"><input type="checkbox" id="diyBigToggle"> Show DIY Big Tasks</label>
+    <ul id="diyBigTaskList" class="task-list hidden"></ul>
   </div>
   <div id="main">
     <h2>Today</h2>
@@ -60,7 +62,39 @@ let todayList=[], todayTasks=[];
 let overdueTasks=[], dueTasks=[];
 let nextId=1;
 let workDataStore={}, workTasks=[];
-let diyDataStore={}, diyTasks=[];
+let diyDataStore={}, diyTasks=[], diyBigTasks=[];
+function getWorkTaskInfo(id,list=workTasks,depth=0,parent=null){
+  for(const t of list){
+    if(t.id===id) return {task:t,parent,depth};
+    if(t.subtasks){
+      const r=getWorkTaskInfo(id,t.subtasks,depth+1,t);
+      if(r) return r;
+    }
+  }
+  return null;
+}
+function forEachWorkTask(cb,list=workTasks,depth=0,parent=null){
+  list.forEach(t=>{
+    cb(t,depth,parent);
+    if(t.subtasks) forEachWorkTask(cb,t.subtasks,depth+1,t);
+  });
+}
+function getDiyTaskInfo(id,list=diyTasks,depth=0,parent=null){
+  for(const t of list){
+    if(t.id===id) return {task:t,parent,depth};
+    if(t.subtasks){
+      const r=getDiyTaskInfo(id,t.subtasks,depth+1,t);
+      if(r) return r;
+    }
+  }
+  return null;
+}
+function forEachDiyTask(cb,list=diyTasks,depth=0,parent=null){
+  list.forEach(t=>{
+    cb(t,depth,parent);
+    if(t.subtasks) forEachDiyTask(cb,t.subtasks,depth+1,t);
+  });
+}
 function formatISO(date){const d=new Date(date);const y=d.getFullYear();const m=String(d.getMonth()+1).padStart(2,'0');const day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
 function formatUK(date){const d=new Date(date);if(isNaN(d)) return date||'';return d.toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'2-digit'});}
 function startOfWeek(date){const d=new Date(date);const day=d.getDay();const diff=(day===0?-6:1-day);d.setDate(d.getDate()+diff);d.setHours(0,0,0,0);return d;}
@@ -82,6 +116,7 @@ async function loadData(){
     if(resD.ok){
       diyDataStore=await resD.json();
       diyTasks=diyDataStore.diyTasks||[];
+      diyBigTasks=diyDataStore.diyBigTasks||[];
     }
   }catch(e){console.error('Failed to load data',e);}
 }
@@ -94,6 +129,7 @@ async function saveWorkData(){
 }
 async function saveDiyData(){
   diyDataStore.diyTasks = diyTasks;
+  diyDataStore.diyBigTasks = diyBigTasks;
   try{
     await fetch('/api/diy-data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(diyDataStore)});
   }catch(e){console.error('Failed to save diy data',e);}
@@ -154,20 +190,34 @@ function rebuildToday(){
     if(r.type==='oneoff') arr=oneOffTasks;
     else if(r.type==='recurring') arr=recurringTasks;
     else if(r.type==='weekly') arr=weeklyTasks;
-    else if(r.type==='work') arr=workTasks;
     else if(r.type==='stretch') arr=stretchTasks;
     else if(r.type==='big') arr=bigTasks;
-    else return;
-    const task=arr.find(t=>t.id===r.id);
+    else if(r.type==='diybig') arr=diyBigTasks;
+    let task=null, depth=0;
+    if(r.type==='work'){
+      const info=getWorkTaskInfo(r.id);
+      if(info){ task=info.task; depth=info.depth; }
+    }else if(r.type==='diy'){
+      const info=getDiyTaskInfo(r.id);
+      if(info){ task=info.task; depth=info.depth; }
+    }else if(arr){
+      task=arr.find(t=>t.id===r.id);
+    }
     if(!task) return;
     if(r.type==='work'){
-      todayTasks.push({category:'work',type:'work',item:task});
+      todayTasks.push({category:'work',type:'work',item:task,depth});
+      return;
+    } else if(r.type==='diy'){
+      todayTasks.push({category:'diy',type:'diy',item:task,depth});
       return;
     } else if(r.type==='stretch'){
       todayTasks.push({category:'stretch',type:'stretch',item:task});
       return;
     } else if(r.type==='big'){
       todayTasks.push({category:'big',type:'big',item:task});
+      return;
+    } else if(r.type==='diybig'){
+      todayTasks.push({category:'diybig',type:'diybig',item:task});
       return;
     }
     let i=overdueTasks.findIndex(o=>o.type===r.type&&o.item.id===r.id);
@@ -221,12 +271,15 @@ function renderSide(){
   if(document.getElementById('diyToggle').checked) renderDiyTasks();
   if(document.getElementById('stretchToggle').checked) renderStretchTasks();
   if(document.getElementById('bigToggle').checked) renderBigTasks();
+  if(document.getElementById('diyBigToggle').checked) renderDiyBigTasks();
 }
 function renderWorkTasks(){
   const ul=document.getElementById('workTaskList');
   ul.innerHTML='';
-  workTasks.filter(t=>t.status==='open').forEach(t=>{
+  forEachWorkTask((t,depth)=>{
+    if(t.status!=='open') return;
     const li=document.createElement('li');
+    li.style.paddingLeft=(depth)+'rem';
     li.textContent=`${t.name} (${t.project})`;
     const b=document.createElement('button');
     b.textContent='Add';
@@ -238,8 +291,10 @@ function renderWorkTasks(){
 function renderDiyTasks(){
   const ul=document.getElementById('diyTaskList');
   ul.innerHTML='';
-  diyTasks.filter(t=>t.status==='open').forEach(t=>{
+  forEachDiyTask((t,depth)=>{
+    if(t.status!=='open') return;
     const li=document.createElement('li');
+    li.style.paddingLeft=(depth)+'rem';
     li.textContent=`${t.name} (${t.project})`;
     const b=document.createElement('button');
     b.textContent='Add';
@@ -274,17 +329,26 @@ function renderBigTasks(){
     ul.appendChild(li);
   });
 }
+function renderDiyBigTasks(){
+  const ul=document.getElementById('diyBigTaskList');
+  ul.innerHTML='';
+  diyBigTasks.filter(t=>t.status==='open').forEach(t=>{
+    const li=document.createElement('li');
+    li.textContent=`${t.name} (${t.project})`;
+    const b=document.createElement('button');
+    b.textContent='Add';
+    b.onclick=()=>addDiyBigToToday(t.id);
+    li.appendChild(b);
+    ul.appendChild(li);
+  });
+}
 function updateToggles(){
   const wt=document.getElementById('workToggle');
   const dt=document.getElementById('diyToggle');
-  const hasWork=todayTasks.some(t=>t.type==='work');
-  const hasDiy=todayTasks.some(t=>t.type==='diy');
-  wt.disabled=hasWork;
-  dt.disabled=hasDiy;
-  document.getElementById('workTaskList').classList.toggle('hidden',!wt.checked);
-  document.getElementById('diyTaskList').classList.toggle('hidden',!dt.checked);
-  if(hasWork) wt.checked=true;
-  if(hasDiy) dt.checked=true;
+  const db=document.getElementById('diyBigToggle');
+  document.getElementById('workTaskList').classList.toggle('hidden', !wt.checked);
+  document.getElementById('diyTaskList').classList.toggle('hidden', !dt.checked);
+  document.getElementById('diyBigTaskList').classList.toggle('hidden', !db.checked);
 }
 function renderToday(){
   const ul=document.getElementById('todayList');
@@ -294,8 +358,11 @@ function renderToday(){
     li.className='today-item';
     li.draggable=true;
     li.dataset.index=i;
+    if(t.depth) li.style.paddingLeft=(t.depth)+'rem';
     const text=document.createElement('span');
-    text.textContent=`${t.item.name} (${t.item.project})`;
+    let label=`${t.item.name} (${t.item.project})`;
+    if(t.type==='big' || t.type==='diybig') label='[BIG] '+label;
+    text.textContent=label;
     const btnBox=document.createElement('span');
     const btnR=document.createElement('button');
     btnR.textContent='Remove';
@@ -321,18 +388,18 @@ function selectTask(t,idx,list){
   updateToggles();
 }
 function addWorkToToday(id){
-  const task=workTasks.find(t=>t.id===id);
-  if(!task) return;
-  todayTasks.push({category:'work',type:'work',item:task});
+  const info=getWorkTaskInfo(id);
+  if(!info) return;
+  todayTasks.push({category:'work',type:'work',item:info.task,depth:info.depth});
   todayList.push({type:'work',id});
   saveData();
   renderToday();
   updateToggles();
 }
 function addDiyToToday(id){
-  const task=diyTasks.find(t=>t.id===id);
-  if(!task) return;
-  todayTasks.push({category:'diy',type:'diy',item:task});
+  const info=getDiyTaskInfo(id);
+  if(!info) return;
+  todayTasks.push({category:'diy',type:'diy',item:info.task,depth:info.depth});
   todayList.push({type:'diy',id});
   saveData();
   renderToday();
@@ -351,6 +418,14 @@ function addBigToToday(id){
   if(!task) return;
   todayTasks.push({category:'big',type:'big',item:task});
   todayList.push({type:'big',id});
+  saveData();
+  renderToday();
+}
+function addDiyBigToToday(id){
+  const task=diyBigTasks.find(t=>t.id===id);
+  if(!task) return;
+  todayTasks.push({category:'diybig',type:'diybig',item:task});
+  todayList.push({type:'diybig',id});
   saveData();
   renderToday();
 }
@@ -410,6 +485,9 @@ function completeToday(idx){
     t.item.completedDates.push(formatISO(now));
     t.item.status='closed';
     t.item.closedDate=formatISO(now);
+  }else if(t.type==='diybig'){
+    t.item.status='closed';
+    saveDiyData();
   }
   if(t.category==='overdue'){/* do nothing */}
   else if(t.category==='due'){/* keep order */}
@@ -436,6 +514,11 @@ document.getElementById('stretchToggle').addEventListener('change',e=>{
 document.getElementById('bigToggle').addEventListener('change',e=>{
   document.getElementById('bigTaskList').classList.toggle('hidden',!e.target.checked);
   if(e.target.checked) renderBigTasks();
+});
+document.getElementById('diyBigToggle').addEventListener('change',e=>{
+  document.getElementById('diyBigTaskList').classList.toggle('hidden',!e.target.checked);
+  if(e.target.checked) renderDiyBigTasks();
+  updateToggles();
 });
 async function init(){await loadData();categorize();rebuildToday();renderSide();renderToday();}
 init();
