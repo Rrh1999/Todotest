@@ -171,6 +171,33 @@ section { padding:1rem; border-bottom:10px solid pink; }
     </div>
   </div>
 
+  <div id="taskModal" class="modal hidden">
+    <div class="modal-content">
+      <label>Name<input id="taskModalName"></label>
+      <label>Project<select id="taskModalProject"></select></label>
+      <label>Due Date<input type="date" id="taskModalDue"></label>
+      <label>Importance<select id="taskModalImportance">
+        <option>High</option>
+        <option>High/Medium</option>
+        <option>Medium</option>
+        <option>Medium/Low</option>
+        <option>Low</option>
+      </select></label>
+      <label>Urgency<select id="taskModalUrgency">
+        <option>High</option>
+        <option>High/Medium</option>
+        <option>Medium</option>
+        <option>Medium/Low</option>
+        <option>Low</option>
+      </select></label>
+      <label>Notes<textarea id="taskModalNotes"></textarea></label>
+      <div style="text-align:right;margin-top:0.5rem;">
+        <button onclick="saveTaskModal()">Save</button>
+        <button onclick="closeTaskModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <script>
 let dataStore = {};
 let workProjects = [];
@@ -480,12 +507,11 @@ function renderMeetings(){
   });
 }
 
-function openMeetingModal(id){
+function openMeetingModal(id, data){
   if(id){
     currentMeeting=meetings.find(m=>m.id===id);
   }else{
-    currentMeeting={id:String(meetingNextId++),title:'',project:'',date:'',attendees:'',content:'',outcomes:'',attachments:[],followupOf:null};
-    meetings.push(currentMeeting);
+    currentMeeting=data||{id:String(meetingNextId++),title:'',project:'',date:'',attendees:'',content:'',outcomes:'',attachments:[],followupOf:null};
   }
   const projSel=document.getElementById('meetProject');
   projSel.innerHTML='<option value="">Ad Hoc</option>';
@@ -502,6 +528,7 @@ function openMeetingModal(id){
 
 function closeMeetingModal(){
   document.getElementById('meetingModal').classList.add('hidden');
+  currentMeeting=null;
 }
 
 function renderAttachments(){
@@ -533,6 +560,9 @@ function saveMeeting(){
   currentMeeting.attendees=document.getElementById('meetAttendees').value;
   currentMeeting.content=document.getElementById('meetContent').value;
   currentMeeting.outcomes=document.getElementById('meetOutcomes').value;
+  if(!meetings.find(m=>m.id===currentMeeting.id)){
+    meetings.push(currentMeeting);
+  }
   saveData();
   renderMeetings();
   closeMeetingModal();
@@ -549,23 +579,51 @@ function deleteMeeting(){
 }
 
 function addFollowUp(){
-  const date=prompt('Follow-up date (YYYY-MM-DD)', '');
-  if(!date) return;
-  const follow={id:String(meetingNextId++),title:currentMeeting.title,project:currentMeeting.project,date,attendees:currentMeeting.attendees,content:currentMeeting.outcomes, outcomes:'',attachments:[],followupOf:currentMeeting.id};
-  meetings.push(follow);
-  saveData();
-  renderMeetings();
-  alert('Follow-up created');
+  const follow={id:String(meetingNextId++),title:currentMeeting.title,project:currentMeeting.project,date:'',attendees:currentMeeting.attendees,content:currentMeeting.outcomes, outcomes:'',attachments:[],followupOf:currentMeeting.id};
+  openMeetingModal(null, follow);
 }
 
 function addOutcomeTask(){
   const ta=document.getElementById('meetOutcomes');
   const text=ta.value.substring(ta.selectionStart, ta.selectionEnd) || ta.value;
   if(!text.trim()) return;
-  const task={id:String(workNextId).padStart(8,'0'),name:text.trim(),project:currentMeeting.project,dueDate:'',importance:'Medium',urgency:'Medium',recurring:false,frequency:null,interval:null,from:null,status:'open',subtasks:[],notes:'from meeting '+currentMeeting.id};
-  workNextId++; workTasks.push(task);
+  const task={name:text.trim(),project:currentMeeting.project,dueDate:'',importance:'Medium',urgency:'Medium',notes:'from meeting '+currentMeeting.id};
+  openTaskModal(task);
+}
+
+let pendingTask=null;
+function openTaskModal(defaults){
+  pendingTask=Object.assign({name:'',project:'',dueDate:'',importance:'Medium',urgency:'Medium',notes:''}, defaults||{});
+  const projSel=document.getElementById('taskModalProject');
+  projSel.innerHTML='<option value="">Ad Hoc</option>';
+  workProjects.forEach(p=>{const o=document.createElement('option');o.value=p.name;o.textContent=p.name;projSel.appendChild(o);});
+  document.getElementById('taskModalName').value=pendingTask.name;
+  document.getElementById('taskModalProject').value=pendingTask.project;
+  document.getElementById('taskModalDue').value=pendingTask.dueDate;
+  document.getElementById('taskModalImportance').value=pendingTask.importance;
+  document.getElementById('taskModalUrgency').value=pendingTask.urgency;
+  document.getElementById('taskModalNotes').value=pendingTask.notes||'';
+  document.getElementById('taskModal').classList.remove('hidden');
+}
+
+function closeTaskModal(){
+  document.getElementById('taskModal').classList.add('hidden');
+  pendingTask=null;
+}
+
+function saveTaskModal(){
+  if(!pendingTask) return;
+  pendingTask.name=document.getElementById('taskModalName').value.trim();
+  pendingTask.project=document.getElementById('taskModalProject').value;
+  pendingTask.dueDate=document.getElementById('taskModalDue').value;
+  pendingTask.importance=document.getElementById('taskModalImportance').value;
+  pendingTask.urgency=document.getElementById('taskModalUrgency').value;
+  pendingTask.notes=document.getElementById('taskModalNotes').value;
+  const full={id:String(workNextId).padStart(8,'0'),recurring:false,frequency:null,interval:null,from:null,status:'open',subtasks:[],...pendingTask};
+  workNextId++; workTasks.push(full);
   saveData();
   renderTasks();
+  closeTaskModal();
 }
 
 loadData();
