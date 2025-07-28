@@ -69,6 +69,24 @@ section {
 </section>
 
 <section>
+  <div class="toggle section-header" onclick="toggle('diyShopSection')">DIY Shopping List</div>
+  <div id="diyShopSection" class="hidden">
+    <div id="diyShopList"></div>
+    <div class="toggle add-toggle" onclick="toggle('addDiyShop')">Add Item</div>
+    <div id="addDiyShop" class="hidden subtoggle form-grid">
+      <label>Name<input type="text" id="diyShopName"></label>
+      <label>Project<select id="diyShopProject"></select></label>
+      <label>Type<select id="diyShopType"></select></label>
+      <label>Cost<input type="number" id="diyShopCost" step="0.01"></label>
+      <label>Month<input type="month" id="diyShopMonth"></label>
+      <div style="grid-column:1/-1;text-align:center;">
+        <button onclick="addDiyShopItem()">Submit</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
   <div class="toggle section-header" onclick="toggle('longTermSection')">Long Term Buying</div>
   <div id="longTermSection" class="hidden">
     <div id="longTermList"></div>
@@ -104,6 +122,8 @@ let projects = [];
 let shoppingList = [];
 let longTermList = [];
 let generalList = [];
+let diyShoppingList = [];
+let diyDataStore = {};
 let weeklyTasks = [];
 let oneOffTasks = [];
 let recurringTasks = [];
@@ -124,6 +144,13 @@ async function saveData() {
   }
 }
 
+async function saveDiyData(){
+  diyDataStore.diyShoppingList = diyShoppingList;
+  try{
+    await fetch('/api/diy-data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(diyDataStore)});
+  }catch(e){console.error('Failed to save diy data',e);}
+}
+
 async function loadData() {
   try {
     const res = await fetch('/api/index-data');
@@ -139,6 +166,11 @@ async function loadData() {
     generalList = obj.generalList || [];
     todayList = obj.todayList || [];
     nextId = obj.nextId || 1;
+    const resD = await fetch('/api/diy-data');
+    if(resD.ok){
+      diyDataStore = await resD.json();
+      diyShoppingList = diyDataStore.diyShoppingList || [];
+    }
   } catch (e) {
     console.error('Failed to load data', e);
   }
@@ -159,7 +191,8 @@ function showMessage(msg) {
 function renderProjects() {
   const selects = [
     document.getElementById('shoppingProject'),
-    document.getElementById('longTermProject')
+    document.getElementById('longTermProject'),
+    document.getElementById('diyShopProject')
   ];
   selects.forEach(select => {
     if (!select) return;
@@ -377,12 +410,51 @@ function deleteGeneral(id) {
   renderGeneral();
 }
 
+function addDiyShopItem(){
+  const name=document.getElementById('diyShopName').value;
+  if(!name) return;
+  const item={id:String(nextId).padStart(8,'0'),name,project:document.getElementById('diyShopProject').value,type:document.getElementById('diyShopType').value,cost:document.getElementById('diyShopCost').value,month:document.getElementById('diyShopMonth').value,bought:false};
+  nextId++; diyShoppingList.push(item);
+  document.getElementById('diyShopName').value='';
+  document.getElementById('diyShopCost').value='';
+  document.getElementById('diyShopMonth').value='';
+  saveDiyData();
+  renderDiyShop();
+}
+
+function renderDiyShop(){
+  const div=document.getElementById('diyShopList');
+  div.innerHTML='';
+  const open=diyShoppingList.filter(i=>!i.bought);
+  if(open.length===0){div.textContent='No items';return;}
+  const table=document.createElement('table'); table.className='task-table';
+  const head=document.createElement('tr'); head.innerHTML='<th>Item</th><th>Project</th><th>Type</th><th>Cost</th><th>Month</th><th></th>'; table.appendChild(head);
+  open.forEach(it=>{
+    const tr=document.createElement('tr'); const proj=projects.find(p=>p.name===it.project); const color=proj?proj.color:'#000';
+    tr.innerHTML=`<td>${it.name}</td><td style="color:${color}">${it.project}</td><td>${it.type}</td><td>${it.cost||''}</td><td>${it.month||''}</td>`;
+    const td=document.createElement('td');
+    const b=document.createElement('button'); b.textContent='Bought'; b.onclick=()=>toggleBoughtDiyShop(it.id);
+    const del=document.createElement('button'); del.textContent='Delete'; del.onclick=()=>deleteDiyShopItem(it.id);
+    td.appendChild(b); td.appendChild(del); tr.appendChild(td); table.appendChild(tr);
+  });
+  div.appendChild(table);
+}
+
+function toggleBoughtDiyShop(id){
+  const it=diyShoppingList.find(i=>i.id===id); if(!it) return; it.bought=true; saveDiyData(); renderDiyShop();
+}
+
+function deleteDiyShopItem(id){
+  const idx=diyShoppingList.findIndex(i=>i.id===id); if(idx===-1) return; diyShoppingList.splice(idx,1); saveDiyData(); renderDiyShop();
+}
+
 async function init() {
   await loadData();
   renderProjects();
   renderShopping();
   renderLongTerm();
   renderGeneral();
+  renderDiyShop();
 }
 init();
 </script>
