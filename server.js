@@ -19,6 +19,8 @@ let indexData = {
   weeklyTasks: [],
   oneOffTasks: [],
   recurringTasks: [],
+  stretchTasks: [],
+  bigTasks: [],
   deletedTasks: [],
   shoppingList: [],
   longTermList: [],
@@ -39,6 +41,17 @@ let workData = {
   meetingNextId: 1
 };
 
+// diy page data
+let diyData = {
+  diyProjects: [],
+  diyTypes: [],
+  diyTasks: [],
+  diyNextId: 1,
+  maxSubDepth: 7,
+  calendarEvents: [],
+  calendarNextId: 1
+};
+
 // spending page data
 let spendingData = {
   projects: [],
@@ -51,6 +64,7 @@ let spendingData = {
 const INDEX_FILE = path.join(__dirname, 'indexData.json');
 const WORK_FILE = path.join(__dirname, 'workData.json');
 const SPENDING_FILE = path.join(__dirname, 'spendingData.json');
+const DIY_FILE = path.join(__dirname, 'diyData.json');
 
 function loadJson(file, def) {
   if (fs.existsSync(file)) {
@@ -69,6 +83,7 @@ function initDb() {
   indexData = loadJson(INDEX_FILE, indexData);
   workData = loadJson(WORK_FILE, workData);
   spendingData = loadJson(SPENDING_FILE, spendingData);
+  diyData = loadJson(DIY_FILE, diyData);
 }
 
 app.get('/api/index-data', (req, res) => {
@@ -98,6 +113,16 @@ app.get('/api/spending-data', (req, res) => {
 app.post('/api/spending-data', (req, res) => {
   spendingData = req.body;
   fs.writeFileSync(SPENDING_FILE, JSON.stringify(spendingData, null, 2));
+  res.json({ status: 'ok' });
+});
+
+app.get('/api/diy-data', (req, res) => {
+  res.json(diyData);
+});
+
+app.post('/api/diy-data', (req, res) => {
+  diyData = req.body;
+  fs.writeFileSync(DIY_FILE, JSON.stringify(diyData, null, 2));
   res.json({ status: 'ok' });
 });
 

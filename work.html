@@ -208,6 +208,7 @@ let maxSubDepth = 7;
 let calendarEvents = [];
 let calendarNextId = 1;
 let calendar;
+let calendarDraggable = null;
 let meetings = [];
 let meetingNextId = 1;
 let currentMeeting = null;
@@ -502,11 +503,12 @@ function renderTasks(){
     row.ondrop=ev=>dropOnTask(ev,t.id);
     row.innerHTML=`<div>${t.name}</div><div>${t.project}</div><div>${t.dueDate||''}</div><div>${t.importance}</div><div>${t.urgency}</div>`;
     const ctrl=document.createElement('div'); ctrl.className='controls';
+    const info=document.createElement('button'); info.textContent='Info'; info.onclick=()=>showInfo(t);
     const comp=document.createElement('button'); comp.textContent='Complete'; comp.onclick=()=>completeTask(t.id);
     const edit=document.createElement('button'); edit.textContent='Edit'; edit.onclick=()=>editTask(t.id);
     const sub=document.createElement('button'); sub.textContent='Add Sub'; sub.onclick=()=>addSubtask(t.id);
     const del=document.createElement('button'); del.textContent='Delete'; del.onclick=()=>deleteTask(t.id);
-    ctrl.appendChild(comp); ctrl.appendChild(edit); ctrl.appendChild(sub); ctrl.appendChild(del);
+    ctrl.appendChild(info); ctrl.appendChild(comp); ctrl.appendChild(edit); ctrl.appendChild(sub); ctrl.appendChild(del);
     row.appendChild(ctrl);
     list.appendChild(row);
   });
@@ -525,7 +527,10 @@ function renderCalendarTasks(){
     div.dataset.title=t.name;
     cont.appendChild(div);
   });
-  new FullCalendar.Draggable(cont,{itemSelector:'.fc-task',eventData:el=>({title:el.dataset.title,taskId:el.dataset.id})});
+  if(calendarDraggable){
+    calendarDraggable.destroy();
+  }
+  calendarDraggable=new FullCalendar.Draggable(cont,{itemSelector:'.fc-task',eventData:el=>({title:el.dataset.title,taskId:el.dataset.id})});
 }
 
 function initCalendar(){
@@ -557,6 +562,9 @@ function deleteCalendarEvents(taskId){
   if(!calendar) return;
   calendar.getEvents().forEach(ev=>{if(ev.extendedProps.taskId===taskId) ev.remove();});
   saveCalendar();
+}
+function showInfo(t){
+  alert(`Name: ${t.name}\nProject: ${t.project}\nDue: ${t.dueDate||''}\nImportance: ${t.importance}\nUrgency: ${t.urgency}\nNotes: ${t.notes||''}`);
 }
 function meetingStatus(date){
   const today=new Date().toISOString().slice(0,10);
