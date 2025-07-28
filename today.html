@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Today</title>
 <style>
 body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 0; }
@@ -21,6 +22,9 @@ header {
 .due { color: orange; }
 .due-soon { font-weight: bold; }
 .today-item { cursor: move; }
+@media (max-width: 600px) {
+  html { font-size: 14px; }
+}
 </style>
 </head>
 <body>
@@ -35,6 +39,8 @@ header {
     <ul id="overdueList" class="task-list"></ul>
     <h2>Due Soon</h2>
     <ul id="dueList" class="task-list"></ul>
+    <label style="display:block;margin-top:0.5rem;"><input type="checkbox" id="workToggle"> Show Work Tasks</label>
+    <ul id="workTaskList" class="task-list hidden"></ul>
   </div>
   <div id="main">
     <h2>Today</h2>
@@ -47,11 +53,33 @@ let projects=[], weeklyTasks=[], oneOffTasks=[], recurringTasks=[], deletedTasks
 let todayList=[], todayTasks=[];
 let overdueTasks=[], dueTasks=[];
 let nextId=1;
+let workDataStore={}, workTasks=[];
 function formatISO(date){const d=new Date(date);const y=d.getFullYear();const m=String(d.getMonth()+1).padStart(2,'0');const day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
 function formatUK(date){const d=new Date(date);if(isNaN(d)) return date||'';return d.toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'2-digit'});}
 function startOfWeek(date){const d=new Date(date);const day=d.getDay();const diff=(day===0?-6:1-day);d.setDate(d.getDate()+diff);d.setHours(0,0,0,0);return d;}
-async function loadData(){try{const res=await fetch('/api/index-data');if(!res.ok) return;const obj=await res.json();projects=obj.projects||[];weeklyTasks=obj.weeklyTasks||[];oneOffTasks=obj.oneOffTasks||[];recurringTasks=obj.recurringTasks||[];deletedTasks=obj.deletedTasks||[];shoppingList=obj.shoppingList||[];longTermList=obj.longTermList||[];generalList=obj.generalList||[];todayList=obj.todayList||[];nextId=obj.nextId||1;}catch(e){console.error('Failed to load data',e);}}
+async function loadData(){
+  try{
+    const res=await fetch('/api/index-data');
+    if(res.ok){
+      const obj=await res.json();
+      projects=obj.projects||[];weeklyTasks=obj.weeklyTasks||[];oneOffTasks=obj.oneOffTasks||[];recurringTasks=obj.recurringTasks||[];
+      deletedTasks=obj.deletedTasks||[];shoppingList=obj.shoppingList||[];longTermList=obj.longTermList||[];
+      generalList=obj.generalList||[];todayList=obj.todayList||[];nextId=obj.nextId||1;
+    }
+    const resW=await fetch('/api/work-data');
+    if(resW.ok){
+      workDataStore=await resW.json();
+      workTasks=workDataStore.workTasks||[];
+    }
+  }catch(e){console.error('Failed to load data',e);}
+}
 async function saveData(){const data={projects,weeklyTasks,oneOffTasks,recurringTasks,deletedTasks,shoppingList,longTermList,generalList,todayList,nextId};try{await fetch('/api/index-data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}catch(e){console.error('Failed to save data',e);}}
+async function saveWorkData(){
+  workDataStore.workTasks = workTasks;
+  try{
+    await fetch('/api/work-data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(workDataStore)});
+  }catch(e){console.error('Failed to save work data',e);}
+}
 function weeklyDueSoon(task){const today=new Date();for(let i=0;i<7;i++){const d=new Date(today);d.setDate(today.getDate()+i);const name=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];if(task.days.includes(name))return true;}return false;}
 function weeklyMissed(task){
   const missed = task.missedDates || [];
@@ -101,7 +129,34 @@ function categorize(){
     }
   });
 }
-function rebuildToday(){todayTasks=[];todayList.forEach(r=>{const arr=r.type==='oneoff'?oneOffTasks:r.type==='recurring'?recurringTasks:weeklyTasks;const task=arr.find(t=>t.id===r.id);if(!task)return;let i=overdueTasks.findIndex(o=>o.type===r.type&&o.item.id===r.id);if(i!==-1){overdueTasks.splice(i,1);todayTasks.push({category:'overdue',type:r.type,item:task});}else{ i=dueTasks.findIndex(o=>o.type===r.type&&o.item.id===r.id); if(i!==-1){dueTasks.splice(i,1);todayTasks.push({category:'due',type:r.type,item:task});}}});}
+function rebuildToday(){
+  todayTasks=[];
+  todayList.forEach(r=>{
+    let arr;
+    if(r.type==='oneoff') arr=oneOffTasks;
+    else if(r.type==='recurring') arr=recurringTasks;
+    else if(r.type==='weekly') arr=weeklyTasks;
+    else if(r.type==='work') arr=workTasks;
+    else return;
+    const task=arr.find(t=>t.id===r.id);
+    if(!task) return;
+    if(r.type==='work'){
+      todayTasks.push({category:'work',type:'work',item:task});
+      return;
+    }
+    let i=overdueTasks.findIndex(o=>o.type===r.type&&o.item.id===r.id);
+    if(i!==-1){
+      overdueTasks.splice(i,1);
+      todayTasks.push({category:'overdue',type:r.type,item:task});
+    }else{
+      i=dueTasks.findIndex(o=>o.type===r.type&&o.item.id===r.id);
+      if(i!==-1){
+        dueTasks.splice(i,1);
+        todayTasks.push({category:'due',type:r.type,item:task});
+      }
+    }
+  });
+}
 function renderSide(){
   const ov=document.getElementById('overdueList');
   ov.innerHTML='';
@@ -136,14 +191,96 @@ function renderSide(){
     li.appendChild(b);
     due.appendChild(li);
   });
+  if(document.getElementById('workToggle').checked) renderWorkTasks();
+}
+function renderWorkTasks(){
+  const ul=document.getElementById('workTaskList');
+  ul.innerHTML='';
+  workTasks.filter(t=>t.status==='open').forEach(t=>{
+    const li=document.createElement('li');
+    li.textContent=`${t.name} (${t.project})`;
+    const b=document.createElement('button');
+    b.textContent='Add';
+    b.onclick=()=>addWorkToToday(t.id);
+    li.appendChild(b);
+    ul.appendChild(li);
+  });
 }
 function renderToday(){const ul=document.getElementById('todayList');ul.innerHTML='';todayTasks.forEach((t,i)=>{const li=document.createElement('li');li.className='today-item';li.draggable=true;li.dataset.index=i;li.textContent=`${t.item.name} (${t.item.project})`;const btnR=document.createElement('button');btnR.textContent='Remove';btnR.onclick=()=>removeToday(i);const btnC=document.createElement('button');btnC.textContent='Complete';btnC.onclick=()=>completeToday(i);li.appendChild(btnR);li.appendChild(btnC);ul.appendChild(li);});}
-function selectTask(t,idx,list){if(list==='overdue')overdueTasks.splice(idx,1);else dueTasks.splice(idx,1);todayTasks.push(t);todayList.push({type:t.type,id:t.item.id});saveData();renderSide();renderToday();}
-function removeToday(idx){const t=todayTasks.splice(idx,1)[0];todayList=todayList.filter(r=>!(r.type===t.type&&r.id===t.item.id));if(t.category==='overdue')overdueTasks.push(t);else dueTasks.push(t);saveData();renderSide();renderToday();}
-function clearToday(){todayTasks.forEach(t=>{if(t.category==='overdue')overdueTasks.push(t);else dueTasks.push(t);});todayTasks=[];todayList=[];saveData();renderSide();renderToday();}
+function selectTask(t,idx,list){
+  if(list==='overdue')overdueTasks.splice(idx,1);else dueTasks.splice(idx,1);
+  todayTasks.push(t);
+  todayList.push({type:t.type,id:t.item.id});
+  saveData();
+  renderSide();
+  renderToday();
+}
+function addWorkToToday(id){
+  const task=workTasks.find(t=>t.id===id);
+  if(!task) return;
+  todayTasks.push({category:'work',type:'work',item:task});
+  todayList.push({type:'work',id});
+  saveData();
+  renderToday();
+}
+function removeToday(idx){
+  const t=todayTasks.splice(idx,1)[0];
+  todayList=todayList.filter(r=>!(r.type===t.type&&r.id===t.item.id));
+  if(t.category==='overdue') overdueTasks.push(t);
+  else if(t.category==='due') dueTasks.push(t);
+  saveData();
+  renderSide();
+  renderToday();
+}
+function clearToday(){
+  todayTasks.forEach(t=>{
+    if(t.category==='overdue') overdueTasks.push(t);
+    else if(t.category==='due') dueTasks.push(t);
+  });
+  todayTasks=[];
+  todayList=[];
+  saveData();
+  renderSide();
+  renderToday();
+}
 function computeNextDue(task,actionDate){const base=(task.from==='today')?new Date(actionDate):new Date(task.dueDate);let d=new Date(base);if(task.frequency==='daily')d.setDate(d.getDate()+task.interval);if(task.frequency==='weekly')d.setDate(d.getDate()+7*task.interval);if(task.frequency==='monthly')d.setMonth(d.getMonth()+task.interval);if(task.frequency==='yearly')d.setFullYear(d.getFullYear()+task.interval);return formatISO(d);}
-function completeToday(idx){const t=todayTasks.splice(idx,1)[0];todayList=todayList.filter(r=>!(r.type===t.type&&r.id===t.item.id));const now=new Date();if(t.type==='oneoff'){t.item.completedDates.push(formatISO(now));t.item.status='closed';t.item.closedDate=formatISO(now);}else if(t.type==='recurring'){t.item.completedDates.push(t.item.dueDate);t.item.lastDiff=Math.floor((now-new Date(t.item.dueDate))/(1000*60*60*24));t.item.lastCompleted=formatISO(now);t.item.dueDate=computeNextDue(t.item,now);}else if(t.type==='weekly'){const iso=formatISO(now);if(!t.item.completedDates.includes(iso))t.item.completedDates.push(iso);t.item.missedDates=t.item.missedDates.filter(d=>d!==iso);}if(t.category==='overdue'){/* do nothing */}else{/* t.category due */}saveData();categorize();renderSide();renderToday();}
+function completeToday(idx){
+  const t=todayTasks.splice(idx,1)[0];
+  todayList=todayList.filter(r=>!(r.type===t.type&&r.id===t.item.id));
+  const now=new Date();
+  if(t.type==='oneoff'){
+    t.item.completedDates.push(formatISO(now));
+    t.item.status='closed';
+    t.item.closedDate=formatISO(now);
+  }else if(t.type==='recurring'){
+    t.item.completedDates.push(t.item.dueDate);
+    t.item.lastDiff=Math.floor((now-new Date(t.item.dueDate))/(1000*60*60*24));
+    t.item.lastCompleted=formatISO(now);
+    t.item.dueDate=computeNextDue(t.item,now);
+  }else if(t.type==='weekly'){
+    const iso=formatISO(now);
+    if(!t.item.completedDates.includes(iso)) t.item.completedDates.push(iso);
+    t.item.missedDates=t.item.missedDates.filter(d=>d!==iso);
+  }else if(t.type==='work'){
+    if(t.item.recurring){
+      t.item.dueDate=computeNextDue(t.item,now);
+    }else{
+      t.item.status='closed';
+    }
+    saveWorkData();
+  }
+  if(t.category==='overdue'){/* do nothing */}
+  else if(t.category==='due'){/* keep order */}
+  saveData();
+  categorize();
+  renderSide();
+  renderToday();
+}
 document.getElementById('todayList').addEventListener('dragstart',e=>{if(e.target.tagName==='LI'){e.dataTransfer.setData('text/plain',e.target.dataset.index);}});document.getElementById('todayList').addEventListener('dragover',e=>{e.preventDefault();});document.getElementById('todayList').addEventListener('drop',e=>{e.preventDefault();const from=+e.dataTransfer.getData('text/plain');const to=e.target.closest('li');if(!to)return;const idx=+to.dataset.index;const item=todayTasks.splice(from,1)[0];const ref=todayList.splice(from,1)[0];todayTasks.splice(idx,0,item);todayList.splice(idx,0,ref);saveData();renderToday();});
+document.getElementById('workToggle').addEventListener('change',e=>{
+  document.getElementById('workTaskList').classList.toggle('hidden',!e.target.checked);
+  if(e.target.checked) renderWorkTasks();
+});
 async function init(){await loadData();categorize();rebuildToday();renderSide();renderToday();}
 init();
 </script>
