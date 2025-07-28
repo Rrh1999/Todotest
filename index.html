@@ -100,24 +100,6 @@ section {
 <script src="nav-loader.js"></script>
 
   <div id="toast" class="hidden"></div>
-  <section>
-    <div class="toggle section-header" onclick="toggle('settings')">Settings</div>
-      <div id="settings" class="hidden">
-        <h3>Add Project</h3>
-        <input type="text" id="projectName" placeholder="Project name">
-        <input type="color" id="projectColor" value="#ff0000">
-        <button onclick="addProject()">Add</button>
-        <ul id="projects"></ul>
-        <button onclick="toggle('deletedBox')">Deleted Tasks</button>
-        <div id="deletedBox" class="hidden box">
-          <ul id="deletedList"></ul>
-        </div>
-        <button onclick="toggle('archivedBox')">Archived Tasks</button>
-        <div id="archivedBox" class="hidden box">
-          <ul id="archivedList"></ul>
-        </div>
-      </div>
-  </section>
 
   <section>
     <div class="toggle section-header" onclick="toggle('weeklySection')">Weekly Tasks</div>
@@ -301,6 +283,24 @@ section {
     </div><!-- end bigSection -->
   </section>
 
+  <section>
+    <div class="toggle section-header" onclick="toggle('settings')">Settings</div>
+      <div id="settings" class="hidden">
+        <h3>Add Project</h3>
+        <input type="text" id="projectName" placeholder="Project name">
+        <input type="color" id="projectColor" value="#ff0000">
+        <button onclick="addProject()">Add</button>
+        <ul id="projects"></ul>
+        <button onclick="toggle('deletedBox')">Deleted Tasks</button>
+        <div id="deletedBox" class="hidden box">
+          <ul id="deletedList"></ul>
+        </div>
+        <button onclick="toggle('archivedBox')">Archived Tasks</button>
+        <div id="archivedBox" class="hidden box">
+          <ul id="archivedList"></ul>
+        </div>
+      </div>
+  </section>
 
 
   <script>

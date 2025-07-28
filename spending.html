@@ -5,20 +5,6 @@
 </header>
 <script src="nav-loader.js"></script>
 <section>
-  <div class="toggle section-header" onclick="toggle('settings')">Settings</div>
-  <div id="settings" class="hidden">
-    <h3>Add Project</h3>
-    <input type="text" id="projectName" placeholder="Project name">
-    <input type="color" id="projectColor" value="#ff0000">
-    <button onclick="addProject()">Add</button>
-    <ul id="projects"></ul>
-    <h3>Filter Projects</h3>
-    <select id="projectFilter" multiple></select>
-    <button onclick="applyFilter()">Apply</button>
-    <button onclick="resetFilter()">Reset</button>
-  </div>
-</section>
-<section>
   <div class="toggle section-header" onclick="toggle('shoppingSection')">Shopping List</div>
   <div id="shoppingSection" class="hidden">
     <div id="shoppingList"></div>
@@ -58,6 +44,20 @@
         <button onclick="addCanBuyItem()">Submit</button>
       </div>
     </div>
+  </div>
+</section>
+<section>
+  <div class="toggle section-header" onclick="toggle('settings')">Settings</div>
+  <div id="settings" class="hidden">
+    <h3>Add Project</h3>
+    <input type="text" id="projectName" placeholder="Project name">
+    <input type="color" id="projectColor" value="#ff0000">
+    <button onclick="addProject()">Add</button>
+    <ul id="projects"></ul>
+    <h3>Filter Projects</h3>
+    <select id="projectFilter" multiple></select>
+    <button onclick="applyFilter()">Apply</button>
+    <button onclick="resetFilter()">Reset</button>
   </div>
 </section>
 <script>
