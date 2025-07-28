@@ -3,5 +3,7 @@
   "workTasks": [],
   "workNextId": 1,
   "calendarEvents": [],
-  "calendarNextId": 1
+  "calendarNextId": 1,
+  "meetings": [],
+  "meetingNextId": 1
 }
