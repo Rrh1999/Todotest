@@ -32,6 +32,7 @@ let workData = {
   workProjects: [],
   workTasks: [],
   workNextId: 1,
+  maxSubDepth: 7,
   calendarEvents: [],
   calendarNextId: 1,
   meetings: [],

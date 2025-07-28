@@ -71,13 +71,24 @@ section { padding:1rem; border-bottom:10px solid pink; }
       <label>Project Name <input type="text" id="workProjectName"></label>
       <label>Color <input type="color" id="workProjectColor" value="#ff0000"></label>
       <button onclick="addWorkProject()">Add</button>
+      <label>Max Subtask Depth <input type="number" id="subtaskDepth" min="1" max="7"></label>
       <ul id="workProjectList"></ul>
     </div>
   </section>
 
   <section>
     <div class="toggle section-header" onclick="toggle('taskSection')">Tasks</div>
-    <div id="taskSection" class="hidden">
+  <div id="taskSection" class="hidden" ondragover="allowDrop(event)" ondrop="dropOnRoot(event)">
+      <div class="filter-grid">
+        <label>Project<select id="filterProject"><option value="all">All</option></select></label>
+        <label>Urgency<select id="filterUrgency"><option value="all">All</option><option>High</option><option>High/Medium</option><option>Medium</option><option>Medium/Low</option><option>Low</option></select></label>
+        <label>Importance<select id="filterImportance"><option value="all">All</option><option>High</option><option>High/Medium</option><option>Medium</option><option>Medium/Low</option><option>Low</option></select></label>
+        <label>Due<select id="filterDue"><option value="all">All</option><option value="overdue">Overdue</option><option value="today">Today</option></select></label>
+        <button onclick="renderTasks()">Apply</button>
+      </div>
+
+      <div id="taskList"></div>
+
       <div class="toggle add-toggle" onclick="toggle('addTaskForm')">Add Task</div>
       <div id="addTaskForm" class="hidden form-grid">
         <label>Name<input type="text" id="taskName"></label>
@@ -112,16 +123,6 @@ section { padding:1rem; border-bottom:10px solid pink; }
           <button onclick="addTask()">Submit</button>
         </div>
       </div>
-
-      <div class="filter-grid">
-        <label>Project<select id="filterProject"><option value="all">All</option></select></label>
-        <label>Urgency<select id="filterUrgency"><option value="all">All</option><option>High</option><option>High/Medium</option><option>Medium</option><option>Medium/Low</option><option>Low</option></select></label>
-        <label>Importance<select id="filterImportance"><option value="all">All</option><option>High</option><option>High/Medium</option><option>Medium</option><option>Medium/Low</option><option>Low</option></select></label>
-        <label>Due<select id="filterDue"><option value="all">All</option><option value="overdue">Overdue</option><option value="today">Today</option></select></label>
-        <button onclick="renderTasks()">Apply</button>
-      </div>
-
-      <div id="taskList"></div>
     </div>
   </section>
 
@@ -203,6 +204,7 @@ let dataStore = {};
 let workProjects = [];
 let workTasks = [];
 let workNextId = 1;
+let maxSubDepth = 7;
 let calendarEvents = [];
 let calendarNextId = 1;
 let calendar;
@@ -231,6 +233,7 @@ async function loadData(){
     workProjects = dataStore.workProjects || [];
     workTasks = dataStore.workTasks || [];
     workNextId = dataStore.workNextId || 1;
+    maxSubDepth = dataStore.maxSubDepth || 7;
     calendarEvents = dataStore.calendarEvents || [];
     calendarNextId = dataStore.calendarNextId || 1;
     meetings = dataStore.meetings || [];
@@ -247,6 +250,7 @@ async function saveData(){
   dataStore.workProjects = workProjects;
   dataStore.workTasks = workTasks;
   dataStore.workNextId = workNextId;
+  dataStore.maxSubDepth = maxSubDepth;
   dataStore.calendarEvents = calendarEvents;
   dataStore.calendarNextId = calendarNextId;
   dataStore.meetings = meetings;
@@ -271,6 +275,11 @@ function renderProjects(){
   const ul = document.getElementById('workProjectList');
   const sel = document.getElementById('taskProject');
   const filt = document.getElementById('filterProject');
+  const depthInput = document.getElementById('subtaskDepth');
+  if(depthInput){
+    depthInput.value = maxSubDepth;
+    depthInput.onchange = () => { maxSubDepth = parseInt(depthInput.value,10)||1; saveData(); };
+  }
   ul.innerHTML=''; sel.innerHTML=''; filt.innerHTML='<option value="all">All</option>';
   workProjects.forEach(p=>{
     const li=document.createElement('li');
@@ -290,6 +299,7 @@ function addTask(){
   if(!name) return;
   const task={
     id:String(workNextId).padStart(8,'0'),
+    parent:null,
     name, project, dueDate: due,
     importance, urgency,
     recurring: rec,
@@ -326,48 +336,127 @@ function computeNextDue(task,actionDate){
   return d.toISOString().slice(0,10);
 }
 
+function getTaskInfo(id, list=workTasks, depth=0, parent=null){
+  for(const t of list){
+    if(t.id===id) return {task:t,parent,depth};
+    if(t.subtasks){
+      const res=getTaskInfo(id,t.subtasks,depth+1,t);
+      if(res) return res;
+    }
+  }
+  return null;
+}
+
+function forEachTask(cb,list=workTasks,depth=0,parent=null){
+  list.forEach(t=>{
+    cb(t,depth,parent);
+    if(t.subtasks) forEachTask(cb,t.subtasks,depth+1,t);
+  });
+}
+
 function completeTask(id){
-  const t=workTasks.find(x=>x.id===id); if(!t) return;
+  const info=getTaskInfo(id);
+  if(!info) return;
+  const t=info.task;
   if(t.recurring){
     t.dueDate=computeNextDue(t,new Date());
   }else{
     t.status='closed';
   }
+  deleteCalendarEvents(id);
   saveData();
   renderTasks();
 }
 
 function deleteTask(id){
-  const idx=workTasks.findIndex(x=>x.id===id); if(idx===-1) return;
-  if(confirm('Delete task?')){ workTasks.splice(idx,1); saveData(); renderTasks(); }
+  const info=getTaskInfo(id);
+  if(!info) return;
+  if(confirm('Delete task?')){
+    if(info.parent){
+      info.parent.subtasks=info.parent.subtasks.filter(x=>x!==info.task);
+    }else{
+      workTasks=workTasks.filter(x=>x!==info.task);
+    }
+    deleteCalendarEvents(id);
+    saveData();
+    renderTasks();
+  }
 }
 
 function editTask(id){
-  const t=workTasks.find(x=>x.id===id); if(!t) return;
-  const newName=prompt('Task name',t.name); if(newName!==null) t.name=newName;
-  const newProj=prompt('Project',t.project); if(newProj!==null) t.project=newProj;
-  if(!t.recurring){
-    const newDue=prompt('Due date YYYY-MM-DD',t.dueDate); if(newDue!==null) t.dueDate=newDue;
+  const info=getTaskInfo(id);
+  if(!info) return;
+  openTaskModal(info.task,true);
+}
+
+function addSubtask(id){
+  const info=getTaskInfo(id);
+  if(!info) return;
+  if(info.depth+1>=maxSubDepth){ alert('Max subtask depth reached'); return; }
+  openTaskModal({project:info.task.project}, false, info.task);
+}
+
+let draggingTaskId=null;
+function startDrag(ev,id){
+  draggingTaskId=id;
+}
+
+function allowDrop(ev){ev.preventDefault();}
+
+function dropOnTask(ev,targetId){
+  ev.preventDefault();
+  if(draggingTaskId && draggingTaskId!==targetId){
+    changeParent(draggingTaskId,targetId);
   }
-  const note=prompt('Notes',t.notes||''); if(note!==null) t.notes=note;
+}
+
+function dropOnRoot(ev){
+  ev.preventDefault();
+  if(draggingTaskId){
+    changeParent(draggingTaskId,null);
+  }
+}
+
+function changeParent(taskId,newParentId){
+  const info=getTaskInfo(taskId);
+  if(!info) return;
+  const newParentInfo=newParentId?getTaskInfo(newParentId):null;
+  if(newParentInfo && isDescendant(taskId,newParentId)){
+    alert('Cannot move into its own descendant');
+    return;
+  }
+  const newDepth=newParentInfo?newParentInfo.depth+1:0;
+  if(newDepth>=maxSubDepth){
+    alert('Max subtask depth reached');
+    return;
+  }
+  // remove from current parent
+  if(info.parent){
+    info.parent.subtasks=info.parent.subtasks.filter(t=>t!==info.task);
+  }else{
+    workTasks=workTasks.filter(t=>t!==info.task);
+  }
+  info.task.parent=newParentInfo?newParentInfo.task.id:null;
+  if(newParentInfo){
+    newParentInfo.task.subtasks=newParentInfo.task.subtasks||[];
+    newParentInfo.task.subtasks.push(info.task);
+  }else{
+    workTasks.push(info.task);
+  }
   saveData();
   renderTasks();
 }
 
-function addSubtask(id){
-  const parent = workTasks.find(x => x.id === id);
-  if (!parent) return;
-  const name = prompt('Subtask name');
-  if (!name) return;
-  const project = prompt('Project', parent.project) || parent.project;
-  const due = prompt('Due date YYYY-MM-DD') || '';
-  const importance = prompt('Importance', parent.importance) || parent.importance;
-  const urgency = prompt('Urgency', parent.urgency) || parent.urgency;
-  const notes = prompt('Notes') || '';
-  parent.subtasks.push({id: String(workNextId).padStart(8,'0'), name, project, dueDate: due, importance, urgency, notes, status: 'open'});
-  workNextId++;
-  saveData();
-  renderTasks();
+function isDescendant(rootId,targetId){
+  const startInfo=getTaskInfo(rootId);
+  if(!startInfo) return false;
+  const stack=[startInfo.task];
+  while(stack.length){
+    const t=stack.pop();
+    if(t.id===targetId) return true;
+    if(t.subtasks) t.subtasks.forEach(st=>stack.push(st));
+  }
+  return false;
 }
 
 
@@ -375,29 +464,42 @@ function addSubtask(id){
 function renderTasks(){
   const list=document.getElementById('taskList');
   list.innerHTML='';
-  let filtered=workTasks.filter(t=>t.status==='open');
   const fProj=document.getElementById('filterProject').value;
   const fUrg=document.getElementById('filterUrgency').value;
   const fImp=document.getElementById('filterImportance').value;
   const fDue=document.getElementById('filterDue').value;
   const today=new Date().toISOString().slice(0,10);
-  filtered=filtered.filter(t=>{
+
+  function passes(t){
+    if(t.status!=='open') return false;
     if(fProj!=='all' && t.project!==fProj) return false;
     if(fUrg!=='all' && t.urgency!==fUrg) return false;
     if(fImp!=='all' && t.importance!==fImp) return false;
     if(fDue==='overdue' && t.dueDate && t.dueDate>=today) return false;
     if(fDue==='today' && t.dueDate!==today) return false;
     return true;
-  });
-  filtered.sort((a,b)=>{
-    const u=priorityVal(b.urgency)-priorityVal(a.urgency);
-    if(u!==0) return u;
-    return priorityVal(b.importance)-priorityVal(a.importance);
-  });
-  filtered.forEach(t=>{
+  }
+
+  function sortTasks(arr){
+    arr.sort((a,b)=>{
+      const u=priorityVal(b.urgency)-priorityVal(a.urgency);
+      if(u!==0) return u;
+      return priorityVal(b.importance)-priorityVal(a.importance);
+    });
+    arr.forEach(t=>{ if(t.subtasks) sortTasks(t.subtasks); });
+  }
+
+  sortTasks(workTasks);
+  forEachTask((t,depth)=>{
+    if(!passes(t)) return;
     const row=document.createElement('div');
     row.className='task-row '+urgencyClass(t.urgency)+' '+importanceClass(t.importance);
-    row.title=t.notes||"";
+    row.style.marginLeft=(depth)+'rem';
+    row.title=t.notes||'';
+    row.draggable=true;
+    row.ondragstart=ev=>startDrag(ev,t.id);
+    row.ondragover=allowDrop;
+    row.ondrop=ev=>dropOnTask(ev,t.id);
     row.innerHTML=`<div>${t.name}</div><div>${t.project}</div><div>${t.dueDate||''}</div><div>${t.importance}</div><div>${t.urgency}</div>`;
     const ctrl=document.createElement('div'); ctrl.className='controls';
     const comp=document.createElement('button'); comp.textContent='Complete'; comp.onclick=()=>completeTask(t.id);
@@ -407,32 +509,6 @@ function renderTasks(){
     ctrl.appendChild(comp); ctrl.appendChild(edit); ctrl.appendChild(sub); ctrl.appendChild(del);
     row.appendChild(ctrl);
     list.appendChild(row);
-    if(t.subtasks){
-      let subs=t.subtasks.filter(st=>st.status==='open');
-      subs=subs.filter(st=>{
-        if(fProj!=='all' && st.project!==fProj) return false;
-        if(fUrg!=='all' && st.urgency!==fUrg) return false;
-        if(fImp!=='all' && st.importance!==fImp) return false;
-        if(fDue==='overdue' && st.dueDate && st.dueDate>=today) return false;
-        if(fDue==='today' && st.dueDate!==today) return false;
-        return true;
-      });
-      subs.sort((a,b)=>{
-        const u=priorityVal(b.urgency)-priorityVal(a.urgency);
-        if(u!==0) return u;
-        return priorityVal(b.importance)-priorityVal(a.importance);
-      });
-      subs.forEach(st=>{
-        const srow=document.createElement('div');
-        srow.className='task-row subtask '+urgencyClass(st.urgency)+' '+importanceClass(st.importance);
-        srow.title=st.notes||'';
-        srow.innerHTML=`<div>${st.name}</div><div>${st.project}</div><div>${st.dueDate||''}</div><div>${st.importance}</div><div>${st.urgency}</div>`;
-        const sctrl=document.createElement('div'); sctrl.className='controls';
-        const scomp=document.createElement('button'); scomp.textContent='Complete'; scomp.onclick=()=>{st.status='closed'; saveData(); renderTasks();};
-        const sdel=document.createElement('button'); sdel.textContent='Delete'; sdel.onclick=()=>{t.subtasks=t.subtasks.filter(x=>x!==st); saveData(); renderTasks();};
-      sctrl.appendChild(scomp); sctrl.appendChild(sdel); srow.appendChild(sctrl); list.appendChild(srow);
-    });
-  }
   });
   renderCalendarTasks();
 }
@@ -440,7 +516,8 @@ function renderTasks(){
 function renderCalendarTasks(){
   const cont=document.getElementById('calendarTaskList');
   cont.innerHTML='';
-  workTasks.filter(t=>t.status==='open').forEach(t=>{
+  forEachTask(t=>{
+    if(t.status!=='open') return;
     const div=document.createElement('div');
     div.className='fc-task';
     div.textContent=t.name;
@@ -476,7 +553,11 @@ function saveCalendar(){
   calendarEvents=calendar.getEvents().map(ev=>({id:ev.id,title:ev.title,start:ev.startStr,end:ev.endStr,taskId:ev.extendedProps.taskId||''}));
   saveData();
 }
-
+function deleteCalendarEvents(taskId){
+  if(!calendar) return;
+  calendar.getEvents().forEach(ev=>{if(ev.extendedProps.taskId===taskId) ev.remove();});
+  saveCalendar();
+}
 function meetingStatus(date){
   const today=new Date().toISOString().slice(0,10);
   if(!date) return 'meeting-upcoming';
@@ -592,8 +673,12 @@ function addOutcomeTask(){
 }
 
 let pendingTask=null;
-function openTaskModal(defaults){
-  pendingTask=Object.assign({name:'',project:'',dueDate:'',importance:'Medium',urgency:'Medium',notes:''}, defaults||{});
+let editingTask=null;
+let modalParent=null;
+function openTaskModal(defaults={}, isEdit=false, parent=null){
+  editingTask=isEdit?defaults:null;
+  modalParent=parent;
+  pendingTask=Object.assign({name:'',project:'',dueDate:'',importance:'Medium',urgency:'Medium',notes:''}, isEdit?defaults||{}:defaults||{});
   const projSel=document.getElementById('taskModalProject');
   projSel.innerHTML='<option value="">Ad Hoc</option>';
   workProjects.forEach(p=>{const o=document.createElement('option');o.value=p.name;o.textContent=p.name;projSel.appendChild(o);});
@@ -609,18 +694,29 @@ function openTaskModal(defaults){
 function closeTaskModal(){
   document.getElementById('taskModal').classList.add('hidden');
   pendingTask=null;
+  editingTask=null;
+  modalParent=null;
 }
 
 function saveTaskModal(){
   if(!pendingTask) return;
-  pendingTask.name=document.getElementById('taskModalName').value.trim();
-  pendingTask.project=document.getElementById('taskModalProject').value;
-  pendingTask.dueDate=document.getElementById('taskModalDue').value;
-  pendingTask.importance=document.getElementById('taskModalImportance').value;
-  pendingTask.urgency=document.getElementById('taskModalUrgency').value;
-  pendingTask.notes=document.getElementById('taskModalNotes').value;
-  const full={id:String(workNextId).padStart(8,'0'),recurring:false,frequency:null,interval:null,from:null,status:'open',subtasks:[],...pendingTask};
-  workNextId++; workTasks.push(full);
+  const target = editingTask || pendingTask;
+  target.name=document.getElementById('taskModalName').value.trim();
+  target.project=document.getElementById('taskModalProject').value;
+  target.dueDate=document.getElementById('taskModalDue').value;
+  target.importance=document.getElementById('taskModalImportance').value;
+  target.urgency=document.getElementById('taskModalUrgency').value;
+  target.notes=document.getElementById('taskModalNotes').value;
+  if(!editingTask){
+    const full={id:String(workNextId).padStart(8,'0'),parent:modalParent?modalParent.id:null,recurring:false,frequency:null,interval:null,from:null,status:'open',subtasks:[],...target};
+    workNextId++;
+    if(modalParent){
+      modalParent.subtasks=modalParent.subtasks||[];
+      modalParent.subtasks.push(full);
+    }else{
+      workTasks.push(full);
+    }
+  }
   saveData();
   renderTasks();
   closeTaskModal();
