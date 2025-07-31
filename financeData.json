@@ -1,0 +1,9 @@
+{
+  "accounts": [],
+  "transactions": [],
+  "nextTransactionId": 1,
+  "budgets": [],
+  "nextBudgetId": 1,
+  "rules": [],
+  "budgetPeriods": []
+}
