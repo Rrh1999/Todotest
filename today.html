@@ -17,7 +17,8 @@ header {
 #side { width: 40%; padding: 1rem; border-left: 1px solid #ccc; }
 #main { flex: 1; padding: 1rem; }
 .task-list { list-style: none; padding: 0; }
-.task-list li { margin: 0.25rem 0; padding: 0.25rem; border-bottom: 1px solid #ddd; display:flex; justify-content: space-between; align-items:center; }
+.task-list li { margin: 0.25rem 0; padding: 0.25rem; border-bottom: 1px solid #ddd; display:flex; justify-content: space-between; align-items:center; flex-wrap:wrap; }
+#todayListContainer{max-height:400px;overflow-y:auto;overflow-x:hidden;width:calc(100% - 1rem);padding-right:1rem;}
 .overdue { color: red; }
 .due { color: orange; }
 .due-soon { font-weight: bold; }
@@ -47,11 +48,15 @@ header {
     <ul id="stretchTaskList" class="task-list hidden"></ul>
     <label style="display:block;margin-top:0.5rem;"><input type="checkbox" id="bigToggle"> Show Big Tasks</label>
     <ul id="bigTaskList" class="task-list hidden"></ul>
+    <label style="display:block;margin-top:0.5rem;"><input type="checkbox" id="diyBigToggle"> Show DIY Big Tasks</label>
+    <ul id="diyBigTaskList" class="task-list hidden"></ul>
   </div>
   <div id="main">
     <h2>Today</h2>
     <button onclick="clearToday()">Clear</button>
-    <ul id="todayList" class="task-list"></ul>
+    <div id="todayListContainer">
+      <ul id="todayList" class="task-list"></ul>
+    </div>
   </div>
 </div>
 <script>
@@ -59,8 +64,48 @@ let projects=[], weeklyTasks=[], oneOffTasks=[], recurringTasks=[], stretchTasks
 let todayList=[], todayTasks=[];
 let overdueTasks=[], dueTasks=[];
 let nextId=1;
-let workDataStore={}, workTasks=[];
-let diyDataStore={}, diyTasks=[];
+let workDataStore={}, workTasks=[], workCalendar=[];
+let diyDataStore={}, diyTasks=[], diyBigTasks=[], diyCalendar=[];
+function getWorkTaskInfo(id,list=workTasks,depth=0,parent=null){
+  for(const t of list){
+    if(t.id===id) return {task:t,parent,depth};
+    if(t.subtasks){
+      const r=getWorkTaskInfo(id,t.subtasks,depth+1,t);
+      if(r) return r;
+    }
+  }
+  return null;
+}
+function forEachWorkTask(cb,list=workTasks,depth=0,parent=null){
+  list.forEach(t=>{
+    cb(t,depth,parent);
+    if(t.subtasks) forEachWorkTask(cb,t.subtasks,depth+1,t);
+  });
+}
+function getDiyTaskInfo(id,list=diyTasks,depth=0,parent=null){
+  for(const t of list){
+    if(t.id===id) return {task:t,parent,depth};
+    if(t.subtasks){
+      const r=getDiyTaskInfo(id,t.subtasks,depth+1,t);
+      if(r) return r;
+    }
+  }
+  return null;
+}
+function forEachDiyTask(cb,list=diyTasks,depth=0,parent=null){
+  list.forEach(t=>{
+    cb(t,depth,parent);
+    if(t.subtasks) forEachDiyTask(cb,t.subtasks,depth+1,t);
+  });
+}
+function taskScheduledToday(type,id){
+  const today=formatISO(new Date());
+  let events=[];
+  if(type==='work') events=workCalendar;
+  else if(type==='diy') events=diyCalendar;
+  else return false;
+  return events.some(ev=>ev.taskId===id && ev.start.slice(0,10)===today);
+}
 function formatISO(date){const d=new Date(date);const y=d.getFullYear();const m=String(d.getMonth()+1).padStart(2,'0');const day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
 function formatUK(date){const d=new Date(date);if(isNaN(d)) return date||'';return d.toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'2-digit'});}
 function startOfWeek(date){const d=new Date(date);const day=d.getDay();const diff=(day===0?-6:1-day);d.setDate(d.getDate()+diff);d.setHours(0,0,0,0);return d;}
@@ -77,11 +122,14 @@ async function loadData(){
     if(resW.ok){
       workDataStore=await resW.json();
       workTasks=workDataStore.workTasks||[];
+      workCalendar=workDataStore.calendarEvents||[];
     }
     const resD=await fetch('/api/diy-data');
     if(resD.ok){
       diyDataStore=await resD.json();
       diyTasks=diyDataStore.diyTasks||[];
+      diyBigTasks=diyDataStore.diyBigTasks||[];
+      diyCalendar=diyDataStore.calendarEvents||[];
     }
   }catch(e){console.error('Failed to load data',e);}
 }
@@ -94,6 +142,7 @@ async function saveWorkData(){
 }
 async function saveDiyData(){
   diyDataStore.diyTasks = diyTasks;
+  diyDataStore.diyBigTasks = diyBigTasks;
   try{
     await fetch('/api/diy-data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(diyDataStore)});
   }catch(e){console.error('Failed to save diy data',e);}
@@ -154,20 +203,34 @@ function rebuildToday(){
     if(r.type==='oneoff') arr=oneOffTasks;
     else if(r.type==='recurring') arr=recurringTasks;
     else if(r.type==='weekly') arr=weeklyTasks;
-    else if(r.type==='work') arr=workTasks;
     else if(r.type==='stretch') arr=stretchTasks;
     else if(r.type==='big') arr=bigTasks;
-    else return;
-    const task=arr.find(t=>t.id===r.id);
+    else if(r.type==='diybig') arr=diyBigTasks;
+    let task=null, depth=0;
+    if(r.type==='work'){
+      const info=getWorkTaskInfo(r.id);
+      if(info){ task=info.task; depth=info.depth; }
+    }else if(r.type==='diy'){
+      const info=getDiyTaskInfo(r.id);
+      if(info){ task=info.task; depth=info.depth; }
+    }else if(arr){
+      task=arr.find(t=>t.id===r.id);
+    }
     if(!task) return;
     if(r.type==='work'){
-      todayTasks.push({category:'work',type:'work',item:task});
+      todayTasks.push({category:'work',type:'work',item:task,depth});
+      return;
+    } else if(r.type==='diy'){
+      todayTasks.push({category:'diy',type:'diy',item:task,depth});
       return;
     } else if(r.type==='stretch'){
       todayTasks.push({category:'stretch',type:'stretch',item:task});
       return;
     } else if(r.type==='big'){
       todayTasks.push({category:'big',type:'big',item:task});
+      return;
+    } else if(r.type==='diybig'){
+      todayTasks.push({category:'diybig',type:'diybig',item:task});
       return;
     }
     let i=overdueTasks.findIndex(o=>o.type===r.type&&o.item.id===r.id);
@@ -189,7 +252,7 @@ function renderSide(){
   overdueTasks.forEach((t,i)=>{
     const li=document.createElement('li');
     li.className='overdue';
-    li.textContent=`${t.item.name} (${t.item.project})`;
+    li.textContent=`[Todo - ${t.type}] ${t.item.name} (${t.item.project})`;
     const b=document.createElement('button');
     b.textContent='Select';
     b.onclick=()=>selectTask(t,i,'overdue');
@@ -210,7 +273,7 @@ function renderSide(){
       info='due '+formatUK(t.item.dueDate);
     }
     if(t.soon) info+=' (soon)';
-    li.textContent=`${t.item.name} (${t.item.project}) ${info}`;
+    li.textContent=`[Todo - ${t.type}] ${t.item.name} (${t.item.project}) ${info}`;
     const b=document.createElement('button');
     b.textContent='Select';
     b.onclick=()=>selectTask(t,i,'due');
@@ -221,13 +284,16 @@ function renderSide(){
   if(document.getElementById('diyToggle').checked) renderDiyTasks();
   if(document.getElementById('stretchToggle').checked) renderStretchTasks();
   if(document.getElementById('bigToggle').checked) renderBigTasks();
+  if(document.getElementById('diyBigToggle').checked) renderDiyBigTasks();
 }
 function renderWorkTasks(){
   const ul=document.getElementById('workTaskList');
   ul.innerHTML='';
-  workTasks.filter(t=>t.status==='open').forEach(t=>{
+  forEachWorkTask((t,depth)=>{
+    if(t.status!=='open') return;
     const li=document.createElement('li');
-    li.textContent=`${t.name} (${t.project})`;
+    li.style.paddingLeft=(depth)+'rem';
+    li.textContent=`[Work] ${t.name} (${t.project})`;
     const b=document.createElement('button');
     b.textContent='Add';
     b.onclick=()=>addWorkToToday(t.id);
@@ -238,9 +304,11 @@ function renderWorkTasks(){
 function renderDiyTasks(){
   const ul=document.getElementById('diyTaskList');
   ul.innerHTML='';
-  diyTasks.filter(t=>t.status==='open').forEach(t=>{
+  forEachDiyTask((t,depth)=>{
+    if(t.status!=='open') return;
     const li=document.createElement('li');
-    li.textContent=`${t.name} (${t.project})`;
+    li.style.paddingLeft=(depth)+'rem';
+    li.textContent=`[DIY] ${t.name} (${t.project})`;
     const b=document.createElement('button');
     b.textContent='Add';
     b.onclick=()=>addDiyToToday(t.id);
@@ -253,7 +321,7 @@ function renderStretchTasks(){
   ul.innerHTML='';
   stretchTasks.filter(t=>t.status==='open').forEach(t=>{
     const li=document.createElement('li');
-    li.textContent=`${t.name} (${t.project})`;
+    li.textContent=`[Todo - stretch] ${t.name} (${t.project})`;
     const b=document.createElement('button');
     b.textContent='Add';
     b.onclick=()=>addStretchToToday(t.id);
@@ -266,7 +334,7 @@ function renderBigTasks(){
   ul.innerHTML='';
   bigTasks.filter(t=>t.status==='open').forEach(t=>{
     const li=document.createElement('li');
-    li.textContent=`${t.name} (${t.project})`;
+    li.textContent=`[Todo - big] ${t.name} (${t.project})`;
     const b=document.createElement('button');
     b.textContent='Add';
     b.onclick=()=>addBigToToday(t.id);
@@ -274,17 +342,26 @@ function renderBigTasks(){
     ul.appendChild(li);
   });
 }
+function renderDiyBigTasks(){
+  const ul=document.getElementById('diyBigTaskList');
+  ul.innerHTML='';
+  diyBigTasks.filter(t=>t.status==='open').forEach(t=>{
+    const li=document.createElement('li');
+    li.textContent=`[DIY - big] ${t.name} (${t.project})`;
+    const b=document.createElement('button');
+    b.textContent='Add';
+    b.onclick=()=>addDiyBigToToday(t.id);
+    li.appendChild(b);
+    ul.appendChild(li);
+  });
+}
 function updateToggles(){
   const wt=document.getElementById('workToggle');
   const dt=document.getElementById('diyToggle');
-  const hasWork=todayTasks.some(t=>t.type==='work');
-  const hasDiy=todayTasks.some(t=>t.type==='diy');
-  wt.disabled=hasWork;
-  dt.disabled=hasDiy;
-  document.getElementById('workTaskList').classList.toggle('hidden',!wt.checked);
-  document.getElementById('diyTaskList').classList.toggle('hidden',!dt.checked);
-  if(hasWork) wt.checked=true;
-  if(hasDiy) dt.checked=true;
+  const db=document.getElementById('diyBigToggle');
+  document.getElementById('workTaskList').classList.toggle('hidden', !wt.checked);
+  document.getElementById('diyTaskList').classList.toggle('hidden', !dt.checked);
+  document.getElementById('diyBigTaskList').classList.toggle('hidden', !db.checked);
 }
 function renderToday(){
   const ul=document.getElementById('todayList');
@@ -294,17 +371,40 @@ function renderToday(){
     li.className='today-item';
     li.draggable=true;
     li.dataset.index=i;
+    if(t.depth) li.style.paddingLeft=(t.depth)+'rem';
     const text=document.createElement('span');
-    text.textContent=`${t.item.name} (${t.item.project})`;
+    let page='';
+    if(['oneoff','recurring','weekly','stretch','big'].includes(t.type)) page='Todo';
+    else if(t.type==='work') page='Work';
+    else if(t.type==='diy' || t.type==='diybig') page='DIY';
+    let label=`${t.item.name} (${t.item.project})`;
+    if(t.type==='big' || t.type==='diybig') label='[BIG] '+label;
+    let info='';
+    if(page==='Todo'){info=t.type;}
+    else if(page==='Work'){info=t.item.project;}
+    const prefix=page?`[${page}${info?` - ${info}`:''}] `:'';
+    text.textContent=prefix+label;
+    if(taskScheduledToday(t.type,t.item.id)) text.style.fontWeight='bold';
     const btnBox=document.createElement('span');
+    const up=document.createElement('button');
+    up.textContent='Up';
+    up.onclick=()=>moveTodayUp(i);
+    const down=document.createElement('button');
+    down.textContent='Down';
+    down.onclick=()=>moveTodayDown(i);
     const btnR=document.createElement('button');
     btnR.textContent='Remove';
     btnR.onclick=()=>removeToday(i);
     const btnC=document.createElement('button');
     btnC.textContent='Complete';
     btnC.onclick=()=>completeToday(i);
+    btnBox.appendChild(up);
+    btnBox.appendChild(down);
     btnBox.appendChild(btnR);
     btnBox.appendChild(btnC);
+    const num=document.createElement('span');
+    num.textContent=(i+1)+'. ';
+    li.appendChild(num);
     li.appendChild(text);
     li.appendChild(btnBox);
     ul.appendChild(li);
@@ -321,18 +421,18 @@ function selectTask(t,idx,list){
   updateToggles();
 }
 function addWorkToToday(id){
-  const task=workTasks.find(t=>t.id===id);
-  if(!task) return;
-  todayTasks.push({category:'work',type:'work',item:task});
+  const info=getWorkTaskInfo(id);
+  if(!info) return;
+  todayTasks.push({category:'work',type:'work',item:info.task,depth:info.depth});
   todayList.push({type:'work',id});
   saveData();
   renderToday();
   updateToggles();
 }
 function addDiyToToday(id){
-  const task=diyTasks.find(t=>t.id===id);
-  if(!task) return;
-  todayTasks.push({category:'diy',type:'diy',item:task});
+  const info=getDiyTaskInfo(id);
+  if(!info) return;
+  todayTasks.push({category:'diy',type:'diy',item:info.task,depth:info.depth});
   todayList.push({type:'diy',id});
   saveData();
   renderToday();
@@ -351,6 +451,30 @@ function addBigToToday(id){
   if(!task) return;
   todayTasks.push({category:'big',type:'big',item:task});
   todayList.push({type:'big',id});
+  saveData();
+  renderToday();
+}
+function addDiyBigToToday(id){
+  const task=diyBigTasks.find(t=>t.id===id);
+  if(!task) return;
+  todayTasks.push({category:'diybig',type:'diybig',item:task});
+  todayList.push({type:'diybig',id});
+  saveData();
+  renderToday();
+}
+
+function moveTodayUp(idx){
+  if(idx<=0) return;
+  [todayTasks[idx-1],todayTasks[idx]]=[todayTasks[idx],todayTasks[idx-1]];
+  [todayList[idx-1],todayList[idx]]=[todayList[idx],todayList[idx-1]];
+  saveData();
+  renderToday();
+}
+
+function moveTodayDown(idx){
+  if(idx>=todayTasks.length-1) return;
+  [todayTasks[idx],todayTasks[idx+1]]=[todayTasks[idx+1],todayTasks[idx]];
+  [todayList[idx],todayList[idx+1]]=[todayList[idx+1],todayList[idx]];
   saveData();
   renderToday();
 }
@@ -410,6 +534,9 @@ function completeToday(idx){
     t.item.completedDates.push(formatISO(now));
     t.item.status='closed';
     t.item.closedDate=formatISO(now);
+  }else if(t.type==='diybig'){
+    t.item.status='closed';
+    saveDiyData();
   }
   if(t.category==='overdue'){/* do nothing */}
   else if(t.category==='due'){/* keep order */}
@@ -436,6 +563,11 @@ document.getElementById('stretchToggle').addEventListener('change',e=>{
 document.getElementById('bigToggle').addEventListener('change',e=>{
   document.getElementById('bigTaskList').classList.toggle('hidden',!e.target.checked);
   if(e.target.checked) renderBigTasks();
+});
+document.getElementById('diyBigToggle').addEventListener('change',e=>{
+  document.getElementById('diyBigTaskList').classList.toggle('hidden',!e.target.checked);
+  if(e.target.checked) renderDiyBigTasks();
+  updateToggles();
 });
 async function init(){await loadData();categorize();rebuildToday();renderSide();renderToday();}
 init();

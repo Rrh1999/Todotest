@@ -46,6 +46,8 @@ let diyData = {
   diyProjects: [],
   diyTypes: [],
   diyTasks: [],
+  diyBigTasks: [],
+  diyShoppingList: [],
   diyNextId: 1,
   maxSubDepth: 7,
   calendarEvents: [],
