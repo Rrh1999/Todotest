@@ -23,6 +23,8 @@ section { padding:1rem; border-bottom:10px solid pink; }
 .form-grid input,.form-grid select{ width:100%; font-size:1rem; padding:0.4rem; }
 .hidden{ display:none !important; }
 .task-row{ display:grid; grid-template-columns:2fr 1fr 1fr 1fr 1fr; gap:0.25rem; align-items:center; border:1px solid #ccc; padding:0.25rem; margin-top:0.25rem; }
+#taskList{max-height:400px;overflow-y:auto;overflow-x:hidden;width:calc(100% - 1rem);padding-right:1rem;}
+.task-row div{word-break:break-word;}
 .subtask{ margin-left:1rem; }
 .controls button{ margin-left:0.25rem; font-size:0.7rem; }
 .filter-grid{ display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.5rem; }
@@ -518,13 +520,14 @@ function renderTasks(){
 function renderCalendarTasks(){
   const cont=document.getElementById('calendarTaskList');
   cont.innerHTML='';
-  forEachTask(t=>{
+  forEachTask((t,depth)=>{
     if(t.status!=='open') return;
     const div=document.createElement('div');
     div.className='fc-task';
     div.textContent=t.name;
     div.dataset.id=t.id;
     div.dataset.title=t.name;
+    div.style.marginLeft=depth+'rem';
     cont.appendChild(div);
   });
   if(calendarDraggable){
@@ -574,20 +577,29 @@ function meetingStatus(date){
   return 'meeting-upcoming';
 }
 
+function formatShortUK(date){
+  const d=new Date(date);
+  if(isNaN(d)) return '';
+  return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'});
+}
+
 function renderMeetings(){
   const colsCont=document.getElementById('meetingColumns');
   const allCont=document.getElementById('allMeetings');
   colsCont.innerHTML='';
   allCont.innerHTML='';
-  const projects=[...workProjects.map(p=>p.name), 'Ad Hoc'];
+  const projects=[...new Set(meetings.map(m=>m.project||'Ad Hoc'))];
   projects.forEach(name=>{
+    const projectMeetings=meetings.filter(m=>(m.project||'Ad Hoc')===name);
+    if(projectMeetings.length===0) return;
     const col=document.createElement('div');
     col.className='meeting-col';
     col.innerHTML='<h3>'+name+'</h3>';
-    meetings.filter(m=> (m.project||'Ad Hoc')===name).forEach(m=>{
+    projectMeetings.forEach(m=>{
       const card=document.createElement('div');
       card.className='meeting-card '+meetingStatus(m.date);
-      card.textContent=m.title;
+      const date=formatShortUK(m.date);
+      card.textContent=date?`${m.title} - ${date}`:m.title;
       card.onclick=()=>openMeetingModal(m.id);
       col.appendChild(card);
       allCont.appendChild(card.cloneNode(true));
