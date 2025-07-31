@@ -54,6 +54,7 @@ th,td{border:1px solid #ccc;padding:0.25rem 0.5rem;}
   <label><input type="checkbox" id="filter-uncoded">Uncoded only</label>
   <button id="show-duplicates" type="button">Show Duplicates</button>
   <button id="download-excel" type="button">Download Excel</button>
+  <button id="delete-selected" type="button">Delete Selected</button>
   <div id="filter-controls" style="margin-top:0.5rem;">
     <input type="text" id="search-text" placeholder="Search description">
     <select id="filter-account"><option value="">All accounts</option></select>
@@ -67,6 +68,7 @@ th,td{border:1px solid #ccc;padding:0.25rem 0.5rem;}
   <table id="tx-table">
     <thead>
       <tr>
+        <th><input type="checkbox" id="select-all"></th>
         <th>Date</th>
         <th>Description</th>
         <th>Amount</th>
@@ -183,7 +185,23 @@ function updateAccountList(){
     });
   }
   const ul = document.getElementById('accounts-display');
-  if(ul){ ul.innerHTML=''; financeData.accounts.forEach(a=>{ const li=document.createElement('li'); li.textContent=a; ul.appendChild(li); }); }
+  if(ul){
+    ul.innerHTML='';
+    financeData.accounts.forEach(a=>{
+      const li=document.createElement('li');
+      li.textContent=a;
+      const del=document.createElement('button');
+      del.textContent='x';
+      del.style.marginLeft='0.5rem';
+      del.addEventListener('click',()=>{
+        financeData.accounts=financeData.accounts.filter(ac=>ac!==a);
+        updateAccountList();
+        saveFinance();
+      });
+      li.appendChild(del);
+      ul.appendChild(li);
+    });
+  }
   const filterSel = document.getElementById('filter-account');
   if(filterSel){
     filterSel.innerHTML = '<option value="">All accounts</option>';
@@ -259,6 +277,8 @@ function checkDuplicates(){
 function renderTransactions(){
   const tbody = document.querySelector("#tx-table tbody");
   tbody.innerHTML = "";
+  const selAll=document.getElementById('select-all');
+  if(selAll) selAll.checked=false;
   const uncoded = document.getElementById("filter-uncoded").checked;
   const search = document.getElementById('search-text').value.toLowerCase();
   const fAcc = document.getElementById('filter-account').value;
@@ -277,7 +297,8 @@ function renderTransactions(){
     if(!Number.isNaN(fMin) && parseFloat(tx.amount) < fMin) return;
     if(!Number.isNaN(fMax) && parseFloat(tx.amount) > fMax) return;
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${tx.date}</td><td>${tx.description}</td><td>${tx.amount}</td><td>${tx.accountName}</td>`;
+    tr.innerHTML = `<td><input type="checkbox" class="tx-select" data-id="${tx.id}"></td>`+
+      `<td>${tx.date}</td><td>${tx.description}</td><td>${tx.amount}</td><td>${tx.accountName}</td>`;
     if(tx.duplicate) tr.style.background = "#fdd";
     if(tx.autofill && !tx.confirmed) tr.style.background = "#ffffcc";
     if(tx.multipleRules && tx.multipleRules.length>1) tr.style.background = "#fcc";
@@ -519,6 +540,16 @@ document.getElementById('download-excel').addEventListener('click', async () => 
   a.download = 'finance-master.xlsx';
   a.click();
   URL.revokeObjectURL(url);
+});
+document.getElementById('select-all').addEventListener('change', e=>{
+  document.querySelectorAll('#tx-table tbody .tx-select').forEach(cb=>cb.checked=e.target.checked);
+});
+document.getElementById('delete-selected').addEventListener('click', ()=>{
+  const ids=Array.from(document.querySelectorAll('#tx-table tbody .tx-select:checked')).map(cb=>parseInt(cb.dataset.id));
+  if(!ids.length) return;
+  financeData.transactions=financeData.transactions.filter(tx=>!ids.includes(tx.id));
+  saveFinance();
+  renderTransactions();
 });
 document.getElementById('close-duplicates').addEventListener('click', () => {
   document.getElementById('duplicates-modal').style.display = 'none';
