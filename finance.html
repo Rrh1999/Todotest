@@ -37,8 +37,7 @@ th,td{border:1px solid #ccc;padding:0.25rem 0.5rem;}
       </select>
     </label>
     <label>Account Name
-      <input type="text" id="account-name" list="account-list" required>
-      <datalist id="account-list"></datalist>
+      <select id="account-name" required></select>
     </label>
     <input type="file" id="file-input" accept=".csv,.xls,.xlsx" required>
     <button type="submit">Upload</button>
@@ -174,25 +173,21 @@ async function loadFinance(){
 }
 
 function updateAccountList(){
-  const list = document.getElementById('account-list');
-  list.innerHTML = '';
+  const sel = document.getElementById('account-name');
+  if(sel){
+    sel.innerHTML = '';
+    financeData.accounts.forEach(a=>{
+      const o=document.createElement('option');
+      o.value=a; o.textContent=a; sel.appendChild(o);
+    });
+  }
   const ul = document.getElementById('accounts-display');
-  ul.innerHTML = '';
+  if(ul){ ul.innerHTML=''; financeData.accounts.forEach(a=>{ const li=document.createElement('li'); li.textContent=a; ul.appendChild(li); }); }
   const filterSel = document.getElementById('filter-account');
-  if(filterSel) { filterSel.innerHTML = '<option value="">All accounts</option>'; }
-  financeData.accounts.forEach(a=>{
-    const opt = document.createElement('option');
-    opt.value = a;
-    list.appendChild(opt);
-    const li = document.createElement('li');
-    li.textContent = a;
-    ul.appendChild(li);
-    if(filterSel){
-      const opt2 = document.createElement('option');
-      opt2.value = a; opt2.textContent = a;
-      filterSel.appendChild(opt2);
-    }
-  });
+  if(filterSel){
+    filterSel.innerHTML = '<option value="">All accounts</option>';
+    financeData.accounts.forEach(a=>{ const opt=document.createElement('option'); opt.value=a; opt.textContent=a; filterSel.appendChild(opt); });
+  }
 }
 
 function getMonth(dateStr){
@@ -249,7 +244,7 @@ function applyRulesToAll(){
 function checkDuplicates(){
   const seen = {};
   financeData.transactions.forEach(tx=>{
-    const key = tx.date+'|'+tx.description+'|'+tx.amount;
+    const key = tx.date+'|'+tx.description+'|'+tx.amount+'|'+tx.accountName;
     if(seen[key]){
       tx.duplicate = true;
       seen[key].duplicate = true;
@@ -426,15 +421,23 @@ function parseFile(file, accountType, accountName){
       rows = XLSX.utils.sheet_to_json(sheet);
     }
     rows.forEach(r=>{
-      let date, description, amount;
+      let date='';
+      let description='';
+      let amount='';
       if(accountType === 'Monzo'){
         date = r.Date || r.date;
-        amount = r.Amount || r.amount;
-        description = r.Description || r.description;
-      }else{
-        date = r.Date || r.date;
-        description = r.Description || r.description;
-        amount = r.Amount || r.amount;
+        description = r.Description || r.Name || r.name || '';
+        if(r['Money Out']) amount = -parseFloat(r['Money Out']);
+        if(r['Money In']) amount = parseFloat(r['Money In']);
+        if(r.Amount) amount = parseFloat(r.Amount);
+      } else {
+        const keys = Object.keys(r).slice(0,8);
+        keys.forEach(k=>{
+          const lower=k.toLowerCase();
+          if(lower.includes('description')) description = r[k];
+          if(lower === 'date' || lower.startsWith('date ')) date = r[k];
+          if(lower.includes('amount')) amount = r[k];
+        });
       }
       const tx = {
         id: financeData.nextTransactionId++,
