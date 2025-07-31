@@ -12,6 +12,8 @@ app.get('/gardening', (req, res) => res.sendFile(path.join(__dirname, 'gardening
 app.get('/diy', (req, res) => res.sendFile(path.join(__dirname, 'diy.html')));
 app.get('/work', (req, res) => res.sendFile(path.join(__dirname, 'work.html')));
 app.get('/spending', (req, res) => res.sendFile(path.join(__dirname, 'spending.html')));
+app.get('/finance', (req, res) => res.sendFile(path.join(__dirname, 'finance.html')));
+
 
 // index page data
 let indexData = {
@@ -63,10 +65,22 @@ let spendingData = {
   nextId: 1
 };
 
+// finance page data
+let financeData = {
+  accounts: [],
+  transactions: [],
+  nextTransactionId: 1,
+  budgets: [],
+  nextBudgetId: 1,
+  rules: [],
+  budgetPeriods: []
+};
+
 const INDEX_FILE = path.join(__dirname, 'indexData.json');
 const WORK_FILE = path.join(__dirname, 'workData.json');
 const SPENDING_FILE = path.join(__dirname, 'spendingData.json');
 const DIY_FILE = path.join(__dirname, 'diyData.json');
+const FINANCE_FILE = path.join(__dirname, 'financeData.json');
 
 function loadJson(file, def) {
   if (fs.existsSync(file)) {
@@ -86,6 +100,7 @@ function initDb() {
   workData = loadJson(WORK_FILE, workData);
   spendingData = loadJson(SPENDING_FILE, spendingData);
   diyData = loadJson(DIY_FILE, diyData);
+  financeData = loadJson(FINANCE_FILE, financeData);
 }
 
 app.get('/api/index-data', (req, res) => {
@@ -125,6 +140,16 @@ app.get('/api/diy-data', (req, res) => {
 app.post('/api/diy-data', (req, res) => {
   diyData = req.body;
   fs.writeFileSync(DIY_FILE, JSON.stringify(diyData, null, 2));
+  res.json({ status: 'ok' });
+});
+
+app.get('/api/finance-data', (req, res) => {
+  res.json(financeData);
+});
+
+app.post('/api/finance-data', (req, res) => {
+  financeData = req.body;
+  fs.writeFileSync(FINANCE_FILE, JSON.stringify(financeData, null, 2));
   res.json({ status: 'ok' });
 });
 
