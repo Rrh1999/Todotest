@@ -115,8 +115,28 @@ th,td{border:1px solid #ccc;padding:0.25rem 0.5rem;}
   </form>
   <table id="budget-table">
     <thead>
-      <tr><th>Name</th><th>Amount</th><th>Recurring</th><th>Date</th><th>Sub Types</th></tr>
+      <tr><th>Name</th><th>Amount</th><th>Recurring</th><th>Date</th><th>Sub Types</th><th>Archived</th></tr>
     </thead>
+    <tbody></tbody>
+  </table>
+  <h3>Budget Periods</h3>
+  <form id="period-form">
+    <input type="date" id="period-start" required>
+    <input type="text" id="period-label" placeholder="Label" required>
+    <button type="submit">Add Period</button>
+  </form>
+  <table id="period-table">
+    <thead><tr><th>Start</th><th>Label</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <h3>Budget Overview</h3>
+  <label>Month <select id="overview-month"></select></label>
+  <label><input type="checkbox" id="show-budgeted" checked>Show Budgeted</label>
+  <label><input type="checkbox" id="show-remaining" checked>Show Remaining</label>
+  <label><input type="checkbox" id="toggle-archived">View Archived Budgets</label>
+  <table id="overview-table">
+    <thead><tr></tr></thead>
     <tbody></tbody>
   </table>
 </div>
@@ -141,12 +161,16 @@ async function loadFinance(){
     financeData.budgets.push({id:financeData.nextBudgetId++,name:'Other \u2013 Not Budgeted',amount:0,recurring:false,subTypes:[]});
   }
   applyRulesToAll();
+  assignMonthsAll();
   await saveFinance();
   checkDuplicates();
   updateAccountList();
   renderTransactions();
   renderBudgets();
   renderRules();
+  renderPeriods();
+  populateOverviewMonths();
+  renderOverview();
 }
 
 function updateAccountList(){
@@ -175,6 +199,24 @@ function getMonth(dateStr){
   const d = new Date(dateStr);
   if(Number.isNaN(d.getTime())) return '';
   return d.toLocaleString('default',{month:'long',year:'numeric'});
+}
+
+function assignMonth(tx){
+  if(!tx.date) { tx.month=''; return; }
+  if(financeData.budgetPeriods && financeData.budgetPeriods.length){
+    const sorted = financeData.budgetPeriods.slice().sort((a,b)=>new Date(a.start)-new Date(b.start));
+    let label = getMonth(tx.date);
+    for(const p of sorted){
+      if(new Date(tx.date) >= new Date(p.start)) label = p.label; else break;
+    }
+    tx.month = label;
+  } else {
+    tx.month = getMonth(tx.date);
+  }
+}
+
+function assignMonthsAll(){
+  financeData.transactions.forEach(t=>assignMonth(t));
 }
 
 function applyRules(tx){
@@ -305,6 +347,11 @@ function renderBudgets(){
     const tr = document.createElement('tr');
     const subs = (b.subTypes||[]).join(', ');
     tr.innerHTML = `<td>${b.name}</td><td>${b.amount}</td><td>${b.recurring ? 'Yes':'No'}</td><td>${b.date||''}</td><td>${subs}</td>`;
+    const arch = document.createElement('input');
+    arch.type = 'checkbox';
+    arch.checked = !!b.archived;
+    arch.addEventListener('change',()=>{ b.archived = arch.checked; saveFinance(); renderOverview(); });
+    const tdArch = document.createElement('td'); tdArch.appendChild(arch); tr.appendChild(tdArch);
     tbody.appendChild(tr);
   });
   updateTypeOptions();
@@ -396,12 +443,13 @@ function parseFile(file, accountType, accountName){
         amount: parseFloat(amount || 0),
         accountType,
         accountName,
-        month: getMonth(date),
+        month: '',
         sourceFile: file.name,
         uploadedAt: new Date().toISOString(),
         notes: '',
         transfer: false
       };
+      assignMonth(tx);
       applyRules(tx);
       financeData.transactions.push(tx);
     });
@@ -409,6 +457,8 @@ function parseFile(file, accountType, accountName){
     await saveFinance();
     updateAccountList();
     renderTransactions();
+    populateOverviewMonths();
+    renderOverview();
     document.getElementById('upload-msg').textContent = 'Uploaded '+rows.length+' rows.';
   };
   if(ext === 'csv') reader.readAsText(file); else reader.readAsBinaryString(file);
@@ -422,7 +472,7 @@ document.getElementById('budget-form').addEventListener('submit', async e=>{
   const rec = document.getElementById('budget-recurring').checked;
   const date = document.getElementById('budget-date').value;
   if(!name) return;
-  financeData.budgets.push({ id: financeData.nextBudgetId++, name, amount: amt, subTypes: subs, recurring: rec, date });
+  financeData.budgets.push({ id: financeData.nextBudgetId++, name, amount: amt, subTypes: subs, recurring: rec, date, archived:false });
   document.getElementById('budget-name').value='';
   document.getElementById('budget-amount').value='';
   document.getElementById('budget-subtypes').value='';
@@ -430,6 +480,8 @@ document.getElementById('budget-form').addEventListener('submit', async e=>{
   document.getElementById('budget-date').value='';
   await saveFinance();
   renderBudgets();
+  renderOverview();
+  populateOverviewMonths();
 });
 
 window.addEventListener('DOMContentLoaded', loadFinance);
@@ -500,6 +552,89 @@ function renderDuplicates(){
     tbody.appendChild(tr);
   });
 }
+
+function renderPeriods(){
+  const tbody=document.querySelector('#period-table tbody');
+  if(!tbody) return;
+  tbody.innerHTML='';
+  financeData.budgetPeriods.sort((a,b)=>new Date(a.start)-new Date(b.start)).forEach(p=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${p.start}</td><td>${p.label}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function populateOverviewMonths(){
+  const sel=document.getElementById('overview-month');
+  if(!sel) return;
+  const months=new Set(financeData.transactions.map(t=>t.month).filter(m=>m));
+  sel.innerHTML='';
+  const map={};
+  financeData.budgetPeriods.forEach(p=>{map[p.label]=new Date(p.start).getTime();});
+  Array.from(months).sort((a,b)=>{
+    return (map[a]||0)-(map[b]||0);
+  }).forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o);});
+  if(sel.options.length) sel.value=sel.options[sel.options.length-1].value;
+}
+
+function renderOverview(){
+  const monthSel=document.getElementById('overview-month');
+  if(!monthSel) return;
+  const month=monthSel.value;
+  const showBud=document.getElementById('show-budgeted').checked;
+  const showRem=document.getElementById('show-remaining').checked;
+  const showArch=document.getElementById('toggle-archived').checked;
+  const thead=document.querySelector('#overview-table thead tr');
+  thead.innerHTML='<th>Budget Item</th>'+(showBud?'<th>Budgeted</th>':'')+'<th>Spent</th>'+(showRem?'<th>Remaining</th>':'')+'<th>Status</th>';
+  const tbody=document.querySelector('#overview-table tbody');
+  tbody.innerHTML='';
+  financeData.budgets.forEach(b=>{
+    if(b.archived && !showArch) return;
+    const spent=financeData.transactions.filter(t=>t.type===b.name && t.month===month && !t.transfer).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+    const rem=(b.amount||0)-spent;
+    const tr=document.createElement('tr');
+    let html=`<td>${b.name}</td>`;
+    if(showBud) html+=`<td>${b.amount||0}</td>`;
+    html+=`<td>${spent.toFixed(2)}</td>`;
+    if(showRem) html+=`<td style="color:${rem<0?'red':'green'}">${rem.toFixed(2)}</td>`;
+    html+=`<td>${rem>=0?'\u2705':'\u274c'}</td>`;
+    tr.innerHTML=html;
+    tbody.appendChild(tr);
+    (b.subTypes||[]).forEach(sub=>{
+      const spentSub=financeData.transactions.filter(t=>t.type===b.name && t.subType===sub && t.month===month && !t.transfer).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+      const tr2=document.createElement('tr');
+      let h=`<td style="padding-left:20px;">${sub}</td>`;
+      if(showBud) h+='<td></td>';
+      h+=`<td>${spentSub.toFixed(2)}</td>`;
+      if(showRem) h+='<td></td>';
+      h+='<td></td>';
+      tr2.innerHTML=h;
+      tbody.appendChild(tr2);
+    });
+  });
+}
+
+document.getElementById('period-form').addEventListener('submit',e=>{
+  e.preventDefault();
+  const start=document.getElementById('period-start').value;
+  const label=document.getElementById('period-label').value.trim();
+  if(!start||!label) return;
+  financeData.budgetPeriods.push({start,label});
+  financeData.budgetPeriods.sort((a,b)=>new Date(a.start)-new Date(b.start));
+  document.getElementById('period-start').value='';
+  document.getElementById('period-label').value='';
+  assignMonthsAll();
+  saveFinance();
+  renderPeriods();
+  populateOverviewMonths();
+  renderOverview();
+  renderTransactions();
+});
+
+document.getElementById('overview-month').addEventListener('change',renderOverview);
+document.getElementById('show-budgeted').addEventListener('change',renderOverview);
+document.getElementById('show-remaining').addEventListener('change',renderOverview);
+document.getElementById('toggle-archived').addEventListener('change',renderOverview);
 </script>
 </body>
 </html>
