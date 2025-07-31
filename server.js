@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const XLSX = require('xlsx');
 const app = express();
 const PORT = process.env.PORT || 3000;
 app.use(express.json());
@@ -151,6 +152,26 @@ app.post('/api/finance-data', (req, res) => {
   financeData = req.body;
   fs.writeFileSync(FINANCE_FILE, JSON.stringify(financeData, null, 2));
   res.json({ status: 'ok' });
+});
+
+app.get('/api/finance-export', (req, res) => {
+  const data = financeData.transactions.map(tx => ({
+    Date: tx.date,
+    Description: tx.description,
+    Amount: tx.amount,
+    Account: tx.accountName,
+    Type: tx.type || '',
+    SubType: tx.subType || '',
+    Notes: tx.notes || '',
+    Month: tx.month || ''
+  }));
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
+  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  res.setHeader('Content-Disposition', 'attachment; filename="finance-master.xlsx"');
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.send(buf);
 });
 
 initDb();

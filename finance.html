@@ -53,6 +53,7 @@ th,td{border:1px solid #ccc;padding:0.25rem 0.5rem;}
   <h2>Transactions</h2>
   <label><input type="checkbox" id="filter-uncoded">Uncoded only</label>
   <button id="show-duplicates" type="button">Show Duplicates</button>
+  <button id="download-excel" type="button">Download Excel</button>
   <div id="filter-controls" style="margin-top:0.5rem;">
     <input type="text" id="search-text" placeholder="Search description">
     <select id="filter-account"><option value="">All accounts</option></select>
@@ -462,6 +463,7 @@ function parseFile(file, accountType, accountName){
     renderTransactions();
     populateOverviewMonths();
     renderOverview();
+    showTab('code');
     document.getElementById('upload-msg').textContent = 'Uploaded '+rows.length+' rows.';
   };
   if(ext === 'csv') reader.readAsText(file); else reader.readAsBinaryString(file);
@@ -508,6 +510,16 @@ document.getElementById('show-duplicates').addEventListener('click', () => {
   document.getElementById('duplicates-modal').style.display = 'block';
 });
 
+document.getElementById('download-excel').addEventListener('click', async () => {
+  const res = await fetch('/api/finance-export');
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'finance-master.xlsx';
+  a.click();
+  URL.revokeObjectURL(url);
+});
 document.getElementById('close-duplicates').addEventListener('click', () => {
   document.getElementById('duplicates-modal').style.display = 'none';
 });
