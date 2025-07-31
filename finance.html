@@ -452,6 +452,13 @@ function parseFile(file, accountType, accountName){
         if(r['Money Out']) amount = -parseFloat(r['Money Out']);
         if(r['Money In']) amount = parseFloat(r['Money In']);
         if(r.Amount) amount = parseFloat(r.Amount);
+      } else if(accountType === 'TSB') {
+        date = r['Transaction date'] || r['Transaction Date'] || r.Date || r.date || '';
+        description = r['Transaction description'] || r.Description || '';
+        const debit = parseFloat(r['Debit Amount'] || r['Debit amount'] || r.Debit || r['Debit'] || '');
+        const credit = parseFloat(r['Credit amount'] || r['Credit Amount'] || r.Credit || r['Credit'] || '');
+        if(!Number.isNaN(debit) && debit) amount = -Math.abs(debit);
+        else if(!Number.isNaN(credit) && credit) amount = Math.abs(credit);
       } else {
         const keys = Object.keys(r).slice(0,8);
         keys.forEach(k=>{
