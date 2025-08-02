@@ -22,7 +22,9 @@ section { padding:1rem; border-bottom:10px solid pink; }
 .form-grid label{ display:flex; flex-direction:column; font-size:0.9rem; }
 .form-grid input,.form-grid select{ width:100%; font-size:1rem; padding:0.4rem; }
 .hidden{ display:none !important; }
-.task-row{ display:grid; grid-template-columns:2fr 1fr 1fr 1fr 1fr; gap:0.25rem; align-items:center; border:1px solid #ccc; padding:0.25rem; margin-top:0.25rem; }
+#taskHeader.task-header,.task-row{ display:grid; grid-template-columns:2fr 1fr 1fr 1fr 1fr; gap:0.25rem; align-items:center; }
+.task-row{ border:1px solid #ccc; padding:0.25rem; margin-top:0.25rem; }
+#taskHeader.task-header{ font-weight:bold; background:#eee; border:1px solid #ccc; position:sticky; top:0; z-index:1; }
 #taskList{max-height:400px;overflow-y:auto;overflow-x:hidden;width:calc(100% - 1rem);padding-right:1rem;}
 .task-row div{word-break:break-word;}
 .subtask{ margin-left:1rem; }
@@ -86,9 +88,13 @@ section { padding:1rem; border-bottom:10px solid pink; }
         <label>Urgency<select id="filterUrgency"><option value="all">All</option><option>High</option><option>High/Medium</option><option>Medium</option><option>Medium/Low</option><option>Low</option></select></label>
         <label>Importance<select id="filterImportance"><option value="all">All</option><option>High</option><option>High/Medium</option><option>Medium</option><option>Medium/Low</option><option>Low</option></select></label>
         <label>Due<select id="filterDue"><option value="all">All</option><option value="overdue">Overdue</option><option value="today">Today</option></select></label>
+        <label>Color By<select id="colorMode" onchange="renderTasks()"><option value="urgency">Urgency</option><option value="project">Project</option></select></label>
         <button onclick="renderTasks()">Apply</button>
       </div>
 
+      <div id="taskHeader" class="task-header">
+        <div>Task</div><div>Project</div><div>Due</div><div>Importance</div><div>Urgency</div>
+      </div>
       <div id="taskList"></div>
 
       <div class="toggle add-toggle" onclick="toggle('addTaskForm')">Add Task</div>
@@ -329,6 +335,7 @@ function priorityVal(v){
 
 function urgencyClass(v){return "urgency-"+v.toLowerCase().replace(/[^a-z]+/g,"-");}
 function importanceClass(v){return "importance-"+v.toLowerCase().replace(/[^a-z]+/g,"-");}
+function getProjectColor(name){const p=workProjects.find(pr=>pr.name===name);return p?p.color:'#000';}
 
 function computeNextDue(task,actionDate){
   let base=task.from==='today'?new Date(actionDate):new Date(task.dueDate);
@@ -467,6 +474,7 @@ function isDescendant(rootId,targetId){
 function renderTasks(){
   const list=document.getElementById('taskList');
   list.innerHTML='';
+  const mode=document.getElementById('colorMode')?document.getElementById('colorMode').value:'urgency';
   const fProj=document.getElementById('filterProject').value;
   const fUrg=document.getElementById('filterUrgency').value;
   const fImp=document.getElementById('filterImportance').value;
@@ -496,14 +504,30 @@ function renderTasks(){
   forEachTask((t,depth)=>{
     if(!passes(t)) return;
     const row=document.createElement('div');
-    row.className='task-row '+urgencyClass(t.urgency)+' '+importanceClass(t.importance);
+    row.className='task-row '+importanceClass(t.importance);
+    if(mode==='urgency') row.classList.add(urgencyClass(t.urgency));
+    else row.style.background='#fff';
     row.style.marginLeft=(depth)+'rem';
     row.title=t.notes||'';
     row.draggable=true;
     row.ondragstart=ev=>startDrag(ev,t.id);
     row.ondragover=allowDrop;
     row.ondrop=ev=>dropOnTask(ev,t.id);
-    row.innerHTML=`<div>${t.name}</div><div>${t.project}</div><div>${t.dueDate||''}</div><div>${t.importance}</div><div>${t.urgency}</div>`;
+    const nameDiv=document.createElement('div');
+    nameDiv.textContent=t.name;
+    const projDiv=document.createElement('div');
+    projDiv.textContent=t.project;
+    if(mode==='project'){
+      const color=getProjectColor(t.project);
+      nameDiv.style.color=color;
+      projDiv.style.color=color;
+    }
+    const dueDiv=document.createElement('div'); dueDiv.textContent=t.dueDate||'';
+    const impDiv=document.createElement('div'); impDiv.textContent=t.importance;
+    const urgDiv=document.createElement('div'); urgDiv.textContent=t.urgency;
+    urgDiv.className=urgencyClass(t.urgency);
+    row.appendChild(nameDiv); row.appendChild(projDiv); row.appendChild(dueDiv);
+    row.appendChild(impDiv); row.appendChild(urgDiv);
     const ctrl=document.createElement('div'); ctrl.className='controls';
     const info=document.createElement('button'); info.textContent='Info'; info.onclick=()=>showInfo(t);
     const comp=document.createElement('button'); comp.textContent='Complete'; comp.onclick=()=>completeTask(t.id);
