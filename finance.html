@@ -56,13 +56,14 @@ th,td{border:1px solid #ccc;padding:0.25rem 0.5rem;}
   <button id="download-excel" type="button">Download Excel</button>
   <button id="delete-selected" type="button">Delete Selected</button>
   <div id="filter-controls" style="margin-top:0.5rem;">
-    <input type="text" id="search-text" placeholder="Search description">
+    <input type="text" id="search-text" placeholder="Search description or file">
     <select id="filter-account"><option value="">All accounts</option></select>
     <select id="filter-type"><option value="">All types</option></select>
     <input type="date" id="filter-date-from">
     <input type="date" id="filter-date-to">
     <input type="number" id="filter-amount-min" placeholder="Min">
     <input type="number" id="filter-amount-max" placeholder="Max">
+    <label><input type="checkbox" id="toggle-file">See File</label>
     <button id="apply-filters" type="button">Apply</button>
   </div>
   <table id="tx-table">
@@ -73,6 +74,8 @@ th,td{border:1px solid #ccc;padding:0.25rem 0.5rem;}
         <th>Description</th>
         <th>Amount</th>
         <th>Account</th>
+        <th class="file-col" style="display:none;">File</th>
+        <th class="file-col" style="display:none;">Uploaded</th>
         <th>Type</th>
         <th>Sub Type</th>
         <th>Confirmed</th>
@@ -99,25 +102,18 @@ th,td{border:1px solid #ccc;padding:0.25rem 0.5rem;}
     <input type="text" id="rule-subtype" placeholder="Sub type" list="rule-subtype-list">
     <button type="submit">Add Rule</button>
   </form>
-  <table id="rule-table">
-    <thead><tr><th>Match</th><th>Type</th><th>Sub Type</th><th>Action</th></tr></thead>
-    <tbody></tbody>
-  </table>
-  <datalist id="rule-subtype-list"></datalist>
-</div>
-<div id="budgets" class="tab-content">
+    <table id="rule-table">
+      <thead><tr><th>Match</th><th>Type</th><th>Sub Type</th><th>Action</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <datalist id="rule-subtype-list"></datalist>
+    <div id="code-settings" class="settings-section"></div>
+  </div>
+  <div id="budgets" class="tab-content">
   <h2>Budgets</h2>
-  <form id="budget-form">
-    <input type="text" id="budget-name" placeholder="Category" required>
-    <input type="number" id="budget-amount" placeholder="Amount" required>
-    <input type="text" id="budget-subtypes" placeholder="Sub types comma separated">
-    <label><input type="checkbox" id="budget-recurring">Recurring</label>
-    <input type="date" id="budget-date">
-    <button type="submit">Add Budget</button>
-  </form>
   <table id="budget-table">
     <thead>
-      <tr><th>Name</th><th>Amount</th><th>Recurring</th><th>Date</th><th>Sub Types</th><th>Archived</th></tr>
+      <tr><th>Name</th><th>Amount</th><th>Recurring</th><th>Date</th><th></th><th>Archived</th></tr>
     </thead>
     <tbody></tbody>
   </table>
@@ -141,11 +137,13 @@ th,td{border:1px solid #ccc;padding:0.25rem 0.5rem;}
     <thead><tr></tr></thead>
     <tbody></tbody>
   </table>
+  <div id="budget-settings" class="settings-section"></div>
 </div>
 <script src="node_modules/papaparse/papaparse.min.js"></script>
 <script src="node_modules/xlsx/dist/xlsx.full.min.js"></script>
 <script>
-let financeData = { accounts: [], transactions: [], nextTransactionId: 1, budgets: [], nextBudgetId: 1, rules: [], budgetPeriods: [] };
+let financeData = { accounts: [], transactions: [], nextTransactionId: 1, budgetCategories: [], budgets: [], nextBudgetId: 1, rules: [], budgetPeriods: [] };
+let lastTxCheckbox = null;
 
 function showTab(id){
   document.querySelectorAll('.tab-content').forEach(div=>div.classList.remove('active'));
@@ -156,12 +154,14 @@ function showTab(id){
 async function loadFinance(){
   const res = await fetch('/api/finance-data');
   financeData = await res.json();
-  if(!financeData.budgets.some(b=>b.name==='Other \u2013 Budgeted')){
-    financeData.budgets.push({id:financeData.nextBudgetId++,name:'Other \u2013 Budgeted',amount:0,recurring:false,subTypes:[]});
+  financeData.budgetCategories = financeData.budgetCategories || [];
+  if(!financeData.budgetCategories.includes('Other \u2013 Budgeted')){
+    financeData.budgetCategories.push('Other \u2013 Budgeted');
   }
-  if(!financeData.budgets.some(b=>b.name==='Other \u2013 Not Budgeted')){
-    financeData.budgets.push({id:financeData.nextBudgetId++,name:'Other \u2013 Not Budgeted',amount:0,recurring:false,subTypes:[]});
+  if(!financeData.budgetCategories.includes('Other \u2013 Not Budgeted')){
+    financeData.budgetCategories.push('Other \u2013 Not Budgeted');
   }
+  financeData.budgets = financeData.budgets || [];
   applyRulesToAll();
   assignMonthsAll();
   await saveFinance();
@@ -173,6 +173,7 @@ async function loadFinance(){
   renderPeriods();
   populateOverviewMonths();
   renderOverview();
+  renderSettingsSections();
 }
 
 function updateAccountList(){
@@ -209,8 +210,19 @@ function updateAccountList(){
   }
 }
 
+function parseDate(str){
+  if(!str) return new Date('');
+  const parts = str.split(/[\/\-]/);
+  if(parts.length === 3 && parts[0].length <= 2 && parts[1].length <= 2){
+    let [d,m,y] = parts;
+    if(y.length === 2) y = '20'+y;
+    return new Date(parseInt(y,10), parseInt(m,10)-1, parseInt(d,10));
+  }
+  return new Date(str);
+}
+
 function getMonth(dateStr){
-  const d = new Date(dateStr);
+  const d = parseDate(dateStr);
   if(Number.isNaN(d.getTime())) return '';
   return d.toLocaleString('default',{month:'long',year:'numeric'});
 }
@@ -218,10 +230,10 @@ function getMonth(dateStr){
 function assignMonth(tx){
   if(!tx.date) { tx.month=''; return; }
   if(financeData.budgetPeriods && financeData.budgetPeriods.length){
-    const sorted = financeData.budgetPeriods.slice().sort((a,b)=>new Date(a.start)-new Date(b.start));
+    const sorted = financeData.budgetPeriods.slice().sort((a,b)=>parseDate(a.start)-parseDate(b.start));
     let label = getMonth(tx.date);
     for(const p of sorted){
-      if(new Date(tx.date) >= new Date(p.start)) label = p.label; else break;
+      if(parseDate(tx.date) >= parseDate(p.start)) label = p.label; else break;
     }
     tx.month = label;
   } else {
@@ -274,6 +286,27 @@ function checkDuplicates(){
   });
 }
 
+function applyBulkChange(tx, updater, alwaysRender){
+  const selected = Array.from(document.querySelectorAll('#tx-table tbody .tx-select:checked'));
+  const isSelected = selected.some(cb => parseInt(cb.dataset.id) === tx.id);
+  let multi = false;
+  if(isSelected && selected.length > 1){
+    if(confirm('Apply this change to all selected transactions?')){
+      const ids = selected.map(cb=>parseInt(cb.dataset.id));
+      financeData.transactions.forEach(t=>{
+        if(ids.includes(t.id)) updater(t);
+      });
+      multi = true;
+    } else {
+      updater(tx);
+    }
+  } else {
+    updater(tx);
+  }
+  saveFinance();
+  if(alwaysRender || multi) renderTransactions();
+}
+
 function renderTransactions(){
   const tbody = document.querySelector("#tx-table tbody");
   tbody.innerHTML = "";
@@ -281,6 +314,8 @@ function renderTransactions(){
   if(selAll) selAll.checked=false;
   const uncoded = document.getElementById("filter-uncoded").checked;
   const search = document.getElementById('search-text').value.toLowerCase();
+  const showFile = document.getElementById('toggle-file').checked;
+  document.querySelectorAll('#tx-table thead .file-col').forEach(th=>th.style.display=showFile?'':'none');
   const fAcc = document.getElementById('filter-account').value;
   const fType = document.getElementById('filter-type').value;
   const fFrom = document.getElementById('filter-date-from').value;
@@ -291,21 +326,42 @@ function renderTransactions(){
     if(uncoded && tx.type) return;
     if(fAcc && tx.accountName !== fAcc) return;
     if(fType && tx.type !== fType) return;
-    if(search && !tx.description.toLowerCase().includes(search)) return;
-    if(fFrom && new Date(tx.date) < new Date(fFrom)) return;
-    if(fTo && new Date(tx.date) > new Date(fTo)) return;
+    if(search){
+      let text = (tx.description||'').toLowerCase();
+      if(showFile){
+        text += ' ' + (tx.sourceFile||'').toLowerCase() + ' ' + (tx.uploadedAt||'').toLowerCase();
+      }
+      if(!text.includes(search)) return;
+    }
+    if(fFrom && parseDate(tx.date) < parseDate(fFrom)) return;
+    if(fTo && parseDate(tx.date) > parseDate(fTo)) return;
     if(!Number.isNaN(fMin) && parseFloat(tx.amount) < fMin) return;
     if(!Number.isNaN(fMax) && parseFloat(tx.amount) > fMax) return;
     const tr = document.createElement("tr");
+    const fileCells = showFile ?
+      `<td class="file-col">${tx.sourceFile||''}</td><td class="file-col">${tx.uploadedAt?tx.uploadedAt.split('T')[0]:''}</td>` :
+      `<td class="file-col" style="display:none;">${tx.sourceFile||''}</td><td class="file-col" style="display:none;">${tx.uploadedAt?tx.uploadedAt.split('T')[0]:''}</td>`;
     tr.innerHTML = `<td><input type="checkbox" class="tx-select" data-id="${tx.id}"></td>`+
-      `<td>${tx.date}</td><td>${tx.description}</td><td>${tx.amount}</td><td>${tx.accountName}</td>`;
+      `<td>${tx.date}</td><td>${tx.description}</td><td>${tx.amount}</td><td>${tx.accountName}</td>` + fileCells;
+    const cb = tr.querySelector('.tx-select');
+    cb.addEventListener('click', e=>{
+      if(e.shiftKey && lastTxCheckbox){
+        const boxes = Array.from(document.querySelectorAll('#tx-table tbody .tx-select'));
+        const start = boxes.indexOf(lastTxCheckbox);
+        const end = boxes.indexOf(cb);
+        const [min,max] = start < end ? [start,end] : [end,start];
+        const check = cb.checked;
+        for(let i=min;i<=max;i++){ boxes[i].checked = check; }
+      }
+      lastTxCheckbox = cb;
+    });
     if(tx.duplicate) tr.style.background = "#fdd";
     if(tx.autofill && !tx.confirmed) tr.style.background = "#ffffcc";
     if(tx.multipleRules && tx.multipleRules.length>1) tr.style.background = "#fcc";
     const typeSel = document.createElement("input");
     typeSel.setAttribute('list','type-list');
     typeSel.value = tx.type || "";
-    typeSel.addEventListener("change", ()=>{ tx.type = typeSel.value; tx.confirmed = true; tx.autofill=false; saveFinance(); renderTransactions(); });
+    typeSel.addEventListener("change", ()=>{ applyBulkChange(tx, t=>{ t.type = typeSel.value; t.confirmed = true; t.autofill=false; }, true); });
     const subTypeInput = document.createElement("input");
     const stList = document.createElement('datalist');
     const stId = 'st-list-'+tx.id;
@@ -313,39 +369,39 @@ function renderTransactions(){
     subTypeInput.setAttribute('list', stId);
     subTypeInput.value = tx.subType || '';
     function populateST(){
-      const budget = financeData.budgets.find(b=>b.name===typeSel.value);
+      const subs = financeData.budgets.filter(b=>b.type===typeSel.value);
       stList.innerHTML='';
-      if(budget){
-        budget.subTypes = budget.subTypes || [];
-        budget.subTypes.forEach(s=>{const o=document.createElement('option');o.value=s;stList.appendChild(o);});
-      }
+      subs.forEach(s=>{const o=document.createElement('option');o.value=s.name;stList.appendChild(o);});
     }
     populateST();
     typeSel.addEventListener('change', populateST);
-    subTypeInput.addEventListener('change', ()=>{ tx.subType = subTypeInput.value; tx.autofill=false; saveFinance(); });
+    subTypeInput.addEventListener('change', ()=>{ applyBulkChange(tx, t=>{ t.subType = subTypeInput.value; t.autofill=false; }, false); });
     const saveSubBtn = document.createElement('button');
     saveSubBtn.textContent = '+';
     saveSubBtn.type = 'button';
     saveSubBtn.addEventListener('click', ()=>{
-      const budget = financeData.budgets.find(b=>b.name===typeSel.value);
-      if(budget && subTypeInput.value && !budget.subTypes.includes(subTypeInput.value)){
-        budget.subTypes.push(subTypeInput.value);
+      const type = typeSel.value;
+      const name = subTypeInput.value;
+      if(type && name && !financeData.budgets.some(b=>b.type===type && b.name===name)){
+        financeData.budgets.push({id:financeData.nextBudgetId++, type, name, amount:0, recurring:false, date:'', archived:false});
         populateST();
         saveFinance();
         renderBudgets();
+        renderOverview();
+        renderSettingsSections();
       }
     });
     const confirmBox = document.createElement("input");
     confirmBox.type = "checkbox";
     confirmBox.checked = !!tx.confirmed;
-    confirmBox.addEventListener("change", ()=>{ tx.confirmed = confirmBox.checked; saveFinance(); });
+    confirmBox.addEventListener("change", ()=>{ applyBulkChange(tx, t=>{ t.confirmed = confirmBox.checked; }, false); });
     const transferBox = document.createElement("input");
     transferBox.type = "checkbox";
     transferBox.checked = !!tx.transfer;
-    transferBox.addEventListener("change", ()=>{ tx.transfer = transferBox.checked; saveFinance(); });
+    transferBox.addEventListener("change", ()=>{ applyBulkChange(tx, t=>{ t.transfer = transferBox.checked; }, false); });
     const notes = document.createElement("input");
     notes.value = tx.notes || "";
-    notes.addEventListener("change", ()=>{ tx.notes = notes.value; saveFinance(); });
+    notes.addEventListener("change", ()=>{ applyBulkChange(tx, t=>{ t.notes = notes.value; }, false); });
     const tdType = document.createElement("td"); tdType.appendChild(typeSel);
     const tdSub = document.createElement('td'); tdSub.appendChild(subTypeInput); tdSub.appendChild(stList); tdSub.appendChild(saveSubBtn);
     const tdConf = document.createElement("td"); tdConf.appendChild(confirmBox);
@@ -359,17 +415,71 @@ function renderTransactions(){
 
 function renderBudgets(){
   const tbody = document.querySelector('#budget-table tbody');
+  if(!tbody) return;
   tbody.innerHTML = '';
+  const groups = {};
   financeData.budgets.forEach(b=>{
+    groups[b.type] = groups[b.type] || { amount:0, items:[] };
+    groups[b.type].amount += parseFloat(b.amount||0);
+    groups[b.type].items.push(b);
+  });
+  financeData.budgetCategories.forEach(cat=>{
+    const g = groups[cat] || {amount:0, items:[]};
     const tr = document.createElement('tr');
-    const subs = (b.subTypes||[]).join(', ');
-    tr.innerHTML = `<td>${b.name}</td><td>${b.amount}</td><td>${b.recurring ? 'Yes':'No'}</td><td>${b.date||''}</td><td>${subs}</td>`;
-    const arch = document.createElement('input');
-    arch.type = 'checkbox';
-    arch.checked = !!b.archived;
-    arch.addEventListener('change',()=>{ b.archived = arch.checked; saveFinance(); renderOverview(); });
-    const tdArch = document.createElement('td'); tdArch.appendChild(arch); tr.appendChild(tdArch);
+    const delCatBtn = document.createElement('button');
+    delCatBtn.textContent = 'Delete';
+    if(!cat.startsWith('Other')){
+      delCatBtn.addEventListener('click', ()=>{
+        if(confirm('Delete category and all its sub budgets? This will remove related types from transactions.')){
+          financeData.budgets = financeData.budgets.filter(b=>b.type!==cat);
+          financeData.transactions.forEach(t=>{ if(t.type===cat){ t.type=''; t.subType=''; } });
+          financeData.rules = financeData.rules.filter(r=>r.type!==cat);
+          financeData.budgetCategories = financeData.budgetCategories.filter(c=>c!==cat);
+          saveFinance();
+          renderBudgets();
+          renderOverview();
+          renderTransactions();
+          renderRules();
+          updateTypeOptions();
+          renderSettingsSections();
+        }
+      });
+    } else {
+      delCatBtn.disabled = true;
+    }
+    tr.appendChild(document.createElement('td')).textContent = cat;
+    tr.appendChild(document.createElement('td')).textContent = g.amount;
+    tr.appendChild(document.createElement('td'));
+    tr.appendChild(document.createElement('td'));
+    const actionTd = document.createElement('td'); actionTd.appendChild(delCatBtn); tr.appendChild(actionTd);
+    tr.appendChild(document.createElement('td'));
     tbody.appendChild(tr);
+    g.items.forEach(sub=>{
+      const tr2 = document.createElement('tr');
+      tr2.innerHTML = `<td style="padding-left:20px;">${sub.name}</td><td>${sub.amount}</td><td>${sub.recurring ? 'Yes':'No'}</td><td>${sub.date||''}</td>`;
+      const delSubBtn = document.createElement('button');
+      delSubBtn.textContent = 'Delete';
+      delSubBtn.addEventListener('click',()=>{
+        if(confirm('Delete this sub budget? This will remove it from any transactions.')){
+          financeData.budgets = financeData.budgets.filter(b=>!(b.type===sub.type && b.name===sub.name));
+          financeData.transactions.forEach(t=>{ if(t.type===sub.type && t.subType===sub.name){ t.type=''; t.subType=''; } });
+          financeData.rules = financeData.rules.filter(r=>!(r.type===sub.type && r.subType===sub.name));
+          saveFinance();
+          renderBudgets();
+          renderOverview();
+          renderTransactions();
+          renderRules();
+          renderSettingsSections();
+        }
+      });
+      const actionTd2 = document.createElement('td'); actionTd2.appendChild(delSubBtn); tr2.appendChild(actionTd2);
+      const arch = document.createElement('input');
+      arch.type = 'checkbox';
+      arch.checked = !!sub.archived;
+      arch.addEventListener('change',()=>{ sub.archived = arch.checked; saveFinance(); renderOverview(); });
+      const tdArch = document.createElement('td'); tdArch.appendChild(arch); tr2.appendChild(tdArch);
+      tbody.appendChild(tr2);
+    });
   });
   updateTypeOptions();
 }
@@ -379,17 +489,134 @@ function updateTypeOptions(){
   if(list) list.innerHTML = '';
   const filter = document.getElementById('filter-type');
   if(filter) filter.innerHTML = '<option value="">All types</option>';
-  financeData.budgets.forEach(b=>{
-    if(list){ const opt=document.createElement('option'); opt.value=b.name; list.appendChild(opt); }
-    if(filter){ const opt=document.createElement('option'); opt.value=b.name; opt.textContent=b.name; filter.appendChild(opt); }
+  financeData.budgetCategories.forEach(t=>{
+    if(list){ const opt=document.createElement('option'); opt.value=t; list.appendChild(opt); }
+    if(filter){ const opt=document.createElement('option'); opt.value=t; opt.textContent=t; filter.appendChild(opt); }
   });
   const ruleType = document.getElementById('rule-type');
   if(ruleType){
     ruleType.innerHTML = '<option value="">Select type</option>';
-    financeData.budgets.forEach(b=>{
-      const o=document.createElement('option'); o.value=b.name; o.textContent=b.name; ruleType.appendChild(o);
+    financeData.budgetCategories.forEach(t=>{
+      const o=document.createElement('option'); o.value=t; o.textContent=t; ruleType.appendChild(o);
     });
   }
+}
+
+function renderSettingsSections(){
+  document.querySelectorAll('.settings-section').forEach(container=>{
+    container.innerHTML = `
+      <h3>Budget Settings</h3>
+      <form class="type-form">
+        <input type="text" class="new-type-name" placeholder="New Category">
+        <button type="submit">Add Category</button>
+      </form>
+      <ul class="type-list"></ul>
+      <form class="subtype-form">
+        <select class="subtype-type"></select>
+        <input type="text" class="subtype-name" placeholder="Sub Type Name">
+        <input type="number" class="subtype-amount" placeholder="Amount">
+        <label><input type="checkbox" class="subtype-recurring">Recurring</label>
+        <input type="date" class="subtype-date">
+        <button type="submit">Add Sub Type</button>
+      </form>
+      <div class="subtype-lists"></div>`;
+    const typeForm = container.querySelector('.type-form');
+    typeForm.addEventListener('submit', e=>{
+      e.preventDefault();
+      const name = container.querySelector('.new-type-name').value.trim();
+      if(!name || financeData.budgetCategories.includes(name)) return;
+      financeData.budgetCategories.push(name);
+      container.querySelector('.new-type-name').value='';
+      saveFinance();
+      updateTypeOptions();
+      renderBudgets();
+      renderOverview();
+      renderSettingsSections();
+    });
+    const subtypeForm = container.querySelector('.subtype-form');
+    const typeSelect = container.querySelector('.subtype-type');
+    function fillTypes(){
+      typeSelect.innerHTML = '<option value="">Select type</option>';
+      financeData.budgetCategories.forEach(t=>{ const o=document.createElement('option'); o.value=t; o.textContent=t; typeSelect.appendChild(o); });
+    }
+    fillTypes();
+    subtypeForm.addEventListener('submit', e=>{
+      e.preventDefault();
+      const type = typeSelect.value;
+      const name = container.querySelector('.subtype-name').value.trim();
+      const amt = parseFloat(container.querySelector('.subtype-amount').value);
+      const rec = container.querySelector('.subtype-recurring').checked;
+      const date = container.querySelector('.subtype-date').value;
+      if(!type || !name) return;
+      financeData.budgets.push({id:financeData.nextBudgetId++, type, name, amount:amt, recurring:rec, date, archived:false});
+      container.querySelector('.subtype-name').value='';
+      container.querySelector('.subtype-amount').value='';
+      container.querySelector('.subtype-recurring').checked=false;
+      container.querySelector('.subtype-date').value='';
+      saveFinance();
+      renderBudgets();
+      renderOverview();
+      renderSettingsSections();
+    });
+
+    const typeList = container.querySelector('.type-list');
+    financeData.budgetCategories.forEach(cat=>{
+      const li=document.createElement('li');
+      li.textContent=cat;
+      if(!cat.startsWith('Other')){
+        const del=document.createElement('button');
+        del.textContent='Delete';
+        del.addEventListener('click',()=>{
+          if(confirm('Delete category and all its sub budgets? This will remove related types from transactions.')){
+            financeData.budgets = financeData.budgets.filter(b=>b.type!==cat);
+            financeData.transactions.forEach(t=>{ if(t.type===cat){ t.type=''; t.subType=''; } });
+            financeData.rules = financeData.rules.filter(r=>r.type!==cat);
+            financeData.budgetCategories = financeData.budgetCategories.filter(c=>c!==cat);
+            saveFinance();
+            renderBudgets();
+            renderOverview();
+            renderTransactions();
+            renderRules();
+            updateTypeOptions();
+            renderSettingsSections();
+          }
+        });
+        li.appendChild(del);
+      }
+      typeList.appendChild(li);
+    });
+
+    const subLists = container.querySelector('.subtype-lists');
+    financeData.budgetCategories.forEach(cat=>{
+      const subs = financeData.budgets.filter(b=>b.type===cat);
+      if(!subs.length) return;
+      const div=document.createElement('div');
+      const title=document.createElement('strong'); title.textContent=cat; div.appendChild(title);
+      const ul=document.createElement('ul');
+      subs.forEach(sub=>{
+        const li=document.createElement('li');
+        li.textContent=sub.name;
+        const del=document.createElement('button'); del.textContent='Delete';
+        del.addEventListener('click',()=>{
+          if(confirm('Delete this sub budget? This will remove it from any transactions.')){
+            financeData.budgets = financeData.budgets.filter(b=>!(b.type===sub.type && b.name===sub.name));
+            financeData.transactions.forEach(t=>{ if(t.type===sub.type && t.subType===sub.name){ t.type=''; t.subType=''; } });
+            financeData.rules = financeData.rules.filter(r=>!(r.type===sub.type && r.subType===sub.name));
+            saveFinance();
+            renderBudgets();
+            renderOverview();
+            renderTransactions();
+            renderRules();
+            renderSettingsSections();
+          }
+        });
+        li.appendChild(del);
+        ul.appendChild(li);
+      });
+      div.appendChild(ul);
+      subLists.appendChild(div);
+    });
+  });
 }
 
 function renderRules(){
@@ -497,26 +724,6 @@ function parseFile(file, accountType, accountName){
   if(ext === 'csv') reader.readAsText(file); else reader.readAsBinaryString(file);
 }
 
-document.getElementById('budget-form').addEventListener('submit', async e=>{
-  e.preventDefault();
-  const name = document.getElementById('budget-name').value.trim();
-  const amt = parseFloat(document.getElementById('budget-amount').value);
-  const subs = document.getElementById('budget-subtypes').value.split(',').map(s=>s.trim()).filter(s=>s);
-  const rec = document.getElementById('budget-recurring').checked;
-  const date = document.getElementById('budget-date').value;
-  if(!name) return;
-  financeData.budgets.push({ id: financeData.nextBudgetId++, name, amount: amt, subTypes: subs, recurring: rec, date, archived:false });
-  document.getElementById('budget-name').value='';
-  document.getElementById('budget-amount').value='';
-  document.getElementById('budget-subtypes').value='';
-  document.getElementById('budget-recurring').checked=false;
-  document.getElementById('budget-date').value='';
-  await saveFinance();
-  renderBudgets();
-  renderOverview();
-  populateOverviewMonths();
-});
-
 window.addEventListener('DOMContentLoaded', loadFinance);
 document.getElementById('add-account').addEventListener('click', () => {
   const name = document.getElementById('new-account').value.trim();
@@ -528,6 +735,7 @@ document.getElementById('add-account').addEventListener('click', () => {
 });
 
 document.getElementById('filter-uncoded').addEventListener('change', renderTransactions);
+document.getElementById('toggle-file').addEventListener('change', renderTransactions);
 
 document.getElementById('apply-filters').addEventListener('click', () => {
   renderTransactions();
@@ -581,10 +789,9 @@ document.getElementById('rule-type').addEventListener('change', () => {
   const type = document.getElementById('rule-type').value;
   const list = document.getElementById('rule-subtype-list');
   list.innerHTML='';
-  const budget = financeData.budgets.find(b=>b.name===type);
-  if(budget){
-    (budget.subTypes||[]).forEach(s=>{const o=document.createElement('option');o.value=s;list.appendChild(o);});
-  }
+  financeData.budgets.filter(b=>b.type===type).forEach(b=>{
+    const o=document.createElement('option');o.value=b.name;list.appendChild(o);
+  });
 });
 
 function renderDuplicates(){
@@ -610,7 +817,7 @@ function renderPeriods(){
   const tbody=document.querySelector('#period-table tbody');
   if(!tbody) return;
   tbody.innerHTML='';
-  financeData.budgetPeriods.sort((a,b)=>new Date(a.start)-new Date(b.start)).forEach(p=>{
+  financeData.budgetPeriods.sort((a,b)=>parseDate(a.start)-parseDate(b.start)).forEach(p=>{
     const tr=document.createElement('tr');
     tr.innerHTML=`<td>${p.start}</td><td>${p.label}</td>`;
     tbody.appendChild(tr);
@@ -623,7 +830,7 @@ function populateOverviewMonths(){
   const months=new Set(financeData.transactions.map(t=>t.month).filter(m=>m));
   sel.innerHTML='';
   const map={};
-  financeData.budgetPeriods.forEach(p=>{map[p.label]=new Date(p.start).getTime();});
+  financeData.budgetPeriods.forEach(p=>{map[p.label]=parseDate(p.start).getTime();});
   Array.from(months).sort((a,b)=>{
     return (map[a]||0)-(map[b]||0);
   }).forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o);});
@@ -641,25 +848,27 @@ function renderOverview(){
   thead.innerHTML='<th>Budget Item</th>'+(showBud?'<th>Budgeted</th>':'')+'<th>Spent</th>'+(showRem?'<th>Remaining</th>':'')+'<th>Status</th>';
   const tbody=document.querySelector('#overview-table tbody');
   tbody.innerHTML='';
-  financeData.budgets.forEach(b=>{
-    if(b.archived && !showArch) return;
-    const spent=financeData.transactions.filter(t=>t.type===b.name && t.month===month && !t.transfer).reduce((s,t)=>s+parseFloat(t.amount||0),0);
-    const rem=(b.amount||0)-spent;
+  financeData.budgetCategories.forEach(cat=>{
+    const subs=financeData.budgets.filter(b=>b.type===cat && (showArch||!b.archived));
+    const catBudget=subs.reduce((s,b)=>s+parseFloat(b.amount||0),0);
+    const spentCat=financeData.transactions.filter(t=>t.type===cat && t.month===month && !t.transfer).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+    const remCat=catBudget-spentCat;
     const tr=document.createElement('tr');
-    let html=`<td>${b.name}</td>`;
-    if(showBud) html+=`<td>${b.amount||0}</td>`;
-    html+=`<td>${spent.toFixed(2)}</td>`;
-    if(showRem) html+=`<td style="color:${rem<0?'red':'green'}">${rem.toFixed(2)}</td>`;
-    html+=`<td>${rem>=0?'\u2705':'\u274c'}</td>`;
+    let html=`<td>${cat}</td>`;
+    if(showBud) html+=`<td>${catBudget.toFixed(2)}</td>`;
+    html+=`<td>${spentCat.toFixed(2)}</td>`;
+    if(showRem) html+=`<td style="color:${remCat<0?'red':'green'}">${remCat.toFixed(2)}</td>`;
+    html+=`<td>${remCat>=0?'\u2705':'\u274c'}</td>`;
     tr.innerHTML=html;
     tbody.appendChild(tr);
-    (b.subTypes||[]).forEach(sub=>{
-      const spentSub=financeData.transactions.filter(t=>t.type===b.name && t.subType===sub && t.month===month && !t.transfer).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+    subs.forEach(sub=>{
+      const spentSub=financeData.transactions.filter(t=>t.type===cat && t.subType===sub.name && t.month===month && !t.transfer).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+      const remSub=(sub.amount||0)-spentSub;
       const tr2=document.createElement('tr');
-      let h=`<td style="padding-left:20px;">${sub}</td>`;
-      if(showBud) h+='<td></td>';
+      let h=`<td style="padding-left:20px;">${sub.name}</td>`;
+      if(showBud) h+=`<td>${(sub.amount||0).toFixed(2)}</td>`;
       h+=`<td>${spentSub.toFixed(2)}</td>`;
-      if(showRem) h+='<td></td>';
+      if(showRem) h+=`<td style="color:${remSub<0?'red':'green'}">${remSub.toFixed(2)}</td>`;
       h+='<td></td>';
       tr2.innerHTML=h;
       tbody.appendChild(tr2);
@@ -673,7 +882,7 @@ document.getElementById('period-form').addEventListener('submit',e=>{
   const label=document.getElementById('period-label').value.trim();
   if(!start||!label) return;
   financeData.budgetPeriods.push({start,label});
-  financeData.budgetPeriods.sort((a,b)=>new Date(a.start)-new Date(b.start));
+  financeData.budgetPeriods.sort((a,b)=>parseDate(a.start)-parseDate(b.start));
   document.getElementById('period-start').value='';
   document.getElementById('period-label').value='';
   assignMonthsAll();
