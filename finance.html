@@ -210,8 +210,19 @@ function updateAccountList(){
   }
 }
 
+function parseDate(str){
+  if(!str) return new Date('');
+  const parts = str.split(/[\/\-]/);
+  if(parts.length === 3 && parts[0].length <= 2 && parts[1].length <= 2){
+    let [d,m,y] = parts;
+    if(y.length === 2) y = '20'+y;
+    return new Date(parseInt(y,10), parseInt(m,10)-1, parseInt(d,10));
+  }
+  return new Date(str);
+}
+
 function getMonth(dateStr){
-  const d = new Date(dateStr);
+  const d = parseDate(dateStr);
   if(Number.isNaN(d.getTime())) return '';
   return d.toLocaleString('default',{month:'long',year:'numeric'});
 }
@@ -219,10 +230,10 @@ function getMonth(dateStr){
 function assignMonth(tx){
   if(!tx.date) { tx.month=''; return; }
   if(financeData.budgetPeriods && financeData.budgetPeriods.length){
-    const sorted = financeData.budgetPeriods.slice().sort((a,b)=>new Date(a.start)-new Date(b.start));
+    const sorted = financeData.budgetPeriods.slice().sort((a,b)=>parseDate(a.start)-parseDate(b.start));
     let label = getMonth(tx.date);
     for(const p of sorted){
-      if(new Date(tx.date) >= new Date(p.start)) label = p.label; else break;
+      if(parseDate(tx.date) >= parseDate(p.start)) label = p.label; else break;
     }
     tx.month = label;
   } else {
@@ -322,8 +333,8 @@ function renderTransactions(){
       }
       if(!text.includes(search)) return;
     }
-    if(fFrom && new Date(tx.date) < new Date(fFrom)) return;
-    if(fTo && new Date(tx.date) > new Date(fTo)) return;
+    if(fFrom && parseDate(tx.date) < parseDate(fFrom)) return;
+    if(fTo && parseDate(tx.date) > parseDate(fTo)) return;
     if(!Number.isNaN(fMin) && parseFloat(tx.amount) < fMin) return;
     if(!Number.isNaN(fMax) && parseFloat(tx.amount) > fMax) return;
     const tr = document.createElement("tr");
@@ -415,11 +426,53 @@ function renderBudgets(){
   financeData.budgetCategories.forEach(cat=>{
     const g = groups[cat] || {amount:0, items:[]};
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${cat}</td><td>${g.amount}</td><td></td><td></td><td></td><td></td>`;
+    const delCatBtn = document.createElement('button');
+    delCatBtn.textContent = 'Delete';
+    if(!cat.startsWith('Other')){
+      delCatBtn.addEventListener('click', ()=>{
+        if(confirm('Delete category and all its sub budgets? This will remove related types from transactions.')){
+          financeData.budgets = financeData.budgets.filter(b=>b.type!==cat);
+          financeData.transactions.forEach(t=>{ if(t.type===cat){ t.type=''; t.subType=''; } });
+          financeData.rules = financeData.rules.filter(r=>r.type!==cat);
+          financeData.budgetCategories = financeData.budgetCategories.filter(c=>c!==cat);
+          saveFinance();
+          renderBudgets();
+          renderOverview();
+          renderTransactions();
+          renderRules();
+          updateTypeOptions();
+          renderSettingsSections();
+        }
+      });
+    } else {
+      delCatBtn.disabled = true;
+    }
+    tr.appendChild(document.createElement('td')).textContent = cat;
+    tr.appendChild(document.createElement('td')).textContent = g.amount;
+    tr.appendChild(document.createElement('td'));
+    tr.appendChild(document.createElement('td'));
+    const actionTd = document.createElement('td'); actionTd.appendChild(delCatBtn); tr.appendChild(actionTd);
+    tr.appendChild(document.createElement('td'));
     tbody.appendChild(tr);
     g.items.forEach(sub=>{
       const tr2 = document.createElement('tr');
-      tr2.innerHTML = `<td style="padding-left:20px;">${sub.name}</td><td>${sub.amount}</td><td>${sub.recurring ? 'Yes':'No'}</td><td>${sub.date||''}</td><td></td>`;
+      tr2.innerHTML = `<td style="padding-left:20px;">${sub.name}</td><td>${sub.amount}</td><td>${sub.recurring ? 'Yes':'No'}</td><td>${sub.date||''}</td>`;
+      const delSubBtn = document.createElement('button');
+      delSubBtn.textContent = 'Delete';
+      delSubBtn.addEventListener('click',()=>{
+        if(confirm('Delete this sub budget? This will remove it from any transactions.')){
+          financeData.budgets = financeData.budgets.filter(b=>!(b.type===sub.type && b.name===sub.name));
+          financeData.transactions.forEach(t=>{ if(t.type===sub.type && t.subType===sub.name){ t.type=''; t.subType=''; } });
+          financeData.rules = financeData.rules.filter(r=>!(r.type===sub.type && r.subType===sub.name));
+          saveFinance();
+          renderBudgets();
+          renderOverview();
+          renderTransactions();
+          renderRules();
+          renderSettingsSections();
+        }
+      });
+      const actionTd2 = document.createElement('td'); actionTd2.appendChild(delSubBtn); tr2.appendChild(actionTd2);
       const arch = document.createElement('input');
       arch.type = 'checkbox';
       arch.checked = !!sub.archived;
@@ -457,6 +510,7 @@ function renderSettingsSections(){
         <input type="text" class="new-type-name" placeholder="New Category">
         <button type="submit">Add Category</button>
       </form>
+      <ul class="type-list"></ul>
       <form class="subtype-form">
         <select class="subtype-type"></select>
         <input type="text" class="subtype-name" placeholder="Sub Type Name">
@@ -464,7 +518,8 @@ function renderSettingsSections(){
         <label><input type="checkbox" class="subtype-recurring">Recurring</label>
         <input type="date" class="subtype-date">
         <button type="submit">Add Sub Type</button>
-      </form>`;
+      </form>
+      <div class="subtype-lists"></div>`;
     const typeForm = container.querySelector('.type-form');
     typeForm.addEventListener('submit', e=>{
       e.preventDefault();
@@ -502,6 +557,64 @@ function renderSettingsSections(){
       renderBudgets();
       renderOverview();
       renderSettingsSections();
+    });
+
+    const typeList = container.querySelector('.type-list');
+    financeData.budgetCategories.forEach(cat=>{
+      const li=document.createElement('li');
+      li.textContent=cat;
+      if(!cat.startsWith('Other')){
+        const del=document.createElement('button');
+        del.textContent='Delete';
+        del.addEventListener('click',()=>{
+          if(confirm('Delete category and all its sub budgets? This will remove related types from transactions.')){
+            financeData.budgets = financeData.budgets.filter(b=>b.type!==cat);
+            financeData.transactions.forEach(t=>{ if(t.type===cat){ t.type=''; t.subType=''; } });
+            financeData.rules = financeData.rules.filter(r=>r.type!==cat);
+            financeData.budgetCategories = financeData.budgetCategories.filter(c=>c!==cat);
+            saveFinance();
+            renderBudgets();
+            renderOverview();
+            renderTransactions();
+            renderRules();
+            updateTypeOptions();
+            renderSettingsSections();
+          }
+        });
+        li.appendChild(del);
+      }
+      typeList.appendChild(li);
+    });
+
+    const subLists = container.querySelector('.subtype-lists');
+    financeData.budgetCategories.forEach(cat=>{
+      const subs = financeData.budgets.filter(b=>b.type===cat);
+      if(!subs.length) return;
+      const div=document.createElement('div');
+      const title=document.createElement('strong'); title.textContent=cat; div.appendChild(title);
+      const ul=document.createElement('ul');
+      subs.forEach(sub=>{
+        const li=document.createElement('li');
+        li.textContent=sub.name;
+        const del=document.createElement('button'); del.textContent='Delete';
+        del.addEventListener('click',()=>{
+          if(confirm('Delete this sub budget? This will remove it from any transactions.')){
+            financeData.budgets = financeData.budgets.filter(b=>!(b.type===sub.type && b.name===sub.name));
+            financeData.transactions.forEach(t=>{ if(t.type===sub.type && t.subType===sub.name){ t.type=''; t.subType=''; } });
+            financeData.rules = financeData.rules.filter(r=>!(r.type===sub.type && r.subType===sub.name));
+            saveFinance();
+            renderBudgets();
+            renderOverview();
+            renderTransactions();
+            renderRules();
+            renderSettingsSections();
+          }
+        });
+        li.appendChild(del);
+        ul.appendChild(li);
+      });
+      div.appendChild(ul);
+      subLists.appendChild(div);
     });
   });
 }
@@ -704,7 +817,7 @@ function renderPeriods(){
   const tbody=document.querySelector('#period-table tbody');
   if(!tbody) return;
   tbody.innerHTML='';
-  financeData.budgetPeriods.sort((a,b)=>new Date(a.start)-new Date(b.start)).forEach(p=>{
+  financeData.budgetPeriods.sort((a,b)=>parseDate(a.start)-parseDate(b.start)).forEach(p=>{
     const tr=document.createElement('tr');
     tr.innerHTML=`<td>${p.start}</td><td>${p.label}</td>`;
     tbody.appendChild(tr);
@@ -717,7 +830,7 @@ function populateOverviewMonths(){
   const months=new Set(financeData.transactions.map(t=>t.month).filter(m=>m));
   sel.innerHTML='';
   const map={};
-  financeData.budgetPeriods.forEach(p=>{map[p.label]=new Date(p.start).getTime();});
+  financeData.budgetPeriods.forEach(p=>{map[p.label]=parseDate(p.start).getTime();});
   Array.from(months).sort((a,b)=>{
     return (map[a]||0)-(map[b]||0);
   }).forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o);});
@@ -769,7 +882,7 @@ document.getElementById('period-form').addEventListener('submit',e=>{
   const label=document.getElementById('period-label').value.trim();
   if(!start||!label) return;
   financeData.budgetPeriods.push({start,label});
-  financeData.budgetPeriods.sort((a,b)=>new Date(a.start)-new Date(b.start));
+  financeData.budgetPeriods.sort((a,b)=>parseDate(a.start)-parseDate(b.start));
   document.getElementById('period-start').value='';
   document.getElementById('period-label').value='';
   assignMonthsAll();
