@@ -96,6 +96,7 @@ th,td{border:1px solid #ccc;padding:0.25rem 0.5rem;}
       <tbody></tbody>
     </table>
   </div>
+  <div id="budget-modal" style="display:none;position:fixed;top:10%;left:10%;right:10%;background:#fff;border:1px solid #ccc;padding:1rem;max-height:80%;overflow:auto;"></div>
   <h3>Autofill Rules</h3>
   <form id="rule-form">
     <input type="text" id="rule-desc" placeholder="Description contains" required>
@@ -1547,8 +1548,27 @@ function renderOverview(){
       });
       h+='<td></td>';
       tr2.innerHTML=h;
-      tbody.appendChild(tr2);
+      catRows.push(tr2);
     });
+    const spentCat=financeData.transactions
+      .filter(t=>t.type===cat && monthSet.has(t.month) && !t.transfer)
+      .reduce((s,t)=>s+parseFloat(t.amount||0),0);
+    const remCat=catBudget-spentCat;
+    const tr=document.createElement('tr');
+    let html=`<td>${cat}</td>`;
+    if(showBud){
+      if(extraDisplay==='separate' && catExtra>0){
+        html+=`<td>${catBase.toFixed(2)}<div style="color:pink;font-weight:bold;font-size:0.8rem;">+${catExtra.toFixed(2)}</div></td>`;
+      } else {
+        html+=`<td>${catBudget.toFixed(2)}</td>`;
+      }
+    }
+    html+=`<td>${spentCat.toFixed(2)}</td>`;
+    if(showRem) html+=`<td style="color:${remCat<0?'red':'green'}">${remCat.toFixed(2)}</td>`;
+    html+=`<td>${remCat>=0?'\u2705':'\u274c'}</td>`;
+    tr.innerHTML=html;
+    tbody.appendChild(tr);
+    catRows.forEach(r=>tbody.appendChild(r));
   });
 }
 
