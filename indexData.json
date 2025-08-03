@@ -10,5 +10,6 @@
   "longTermList": [],
   "generalList": [],
   "todayList": [],
-  "nextId": 1
+  "nextId": 1,
+  "todayQuickHistory": []
 }
