@@ -29,6 +29,7 @@ let indexData = {
   longTermList: [],
   generalList: [],
   todayList: [],
+  todayQuickHistory: [],
   nextId: 1
 };
 
@@ -71,6 +72,7 @@ let financeData = {
   accounts: [],
   transactions: [],
   nextTransactionId: 1,
+  budgetCategories: [],
   budgets: [],
   nextBudgetId: 1,
   rules: [],
@@ -160,6 +162,8 @@ app.get('/api/finance-export', (req, res) => {
     Description: tx.description,
     Amount: tx.amount,
     Account: tx.accountName,
+    File: tx.sourceFile || '',
+    Uploaded: tx.uploadedAt || '',
     Type: tx.type || '',
     SubType: tx.subType || '',
     Notes: tx.notes || '',
