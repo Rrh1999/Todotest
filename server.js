@@ -76,7 +76,8 @@ let financeData = {
   budgets: [],
   nextBudgetId: 1,
   rules: [],
-  budgetPeriods: []
+  budgetPeriods: [],
+  startBalances: { date:'', accounts:{} }
 };
 
 const INDEX_FILE = path.join(__dirname, 'indexData.json');

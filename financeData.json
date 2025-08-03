@@ -6,5 +6,6 @@
   "budgets": [],
   "nextBudgetId": 1,
   "rules": [],
-  "budgetPeriods": []
+  "budgetPeriods": [],
+  "startBalances": { "date": "", "accounts": {} }
 }
