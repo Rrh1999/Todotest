@@ -29,6 +29,7 @@ let indexData = {
   longTermList: [],
   generalList: [],
   todayList: [],
+  todayQuickHistory: [],
   nextId: 1
 };
 

@@ -11,5 +11,6 @@
   "nextId": 1,
   "workProjects": [],
   "workTasks": [],
-  "workNextId": 1
+  "workNextId": 1,
+  "todayQuickHistory": []
 }
