@@ -204,6 +204,11 @@ async function loadFinance(){
     if(!p.end) p.end = p.start;
   });
   financeData.startBalances = financeData.startBalances || {date:'', accounts:{}};
+  financeData.transactions = (financeData.transactions || []).map(tx=>{
+    const d = parseDate(tx.date);
+    tx.date = Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0,10);
+    return tx;
+  });
   applyRulesToAll();
   assignMonthsAll();
   await saveFinance();
@@ -255,15 +260,26 @@ function updateAccountList(){
   }
 }
 
-function parseDate(str){
-  if(!str) return new Date('');
-  const parts = str.split(/[\/\-]/);
-  if(parts.length === 3 && parts[0].length <= 2 && parts[1].length <= 2){
-    let [d,m,y] = parts;
-    if(y.length === 2) y = '20'+y;
-    return new Date(parseInt(y,10), parseInt(m,10)-1, parseInt(d,10));
+function parseDate(val){
+  if(val === undefined || val === null || val === '') return new Date('');
+  if(val instanceof Date) return val;
+  if(typeof val === 'number'){
+    // Excel stores dates as days since 1899-12-30
+    return new Date(Math.round((val - 25569) * 86400 * 1000));
   }
-  return new Date(str);
+  if(typeof val === 'string'){
+    const s = val.trim();
+    const parts = s.split(/[\/\-]/);
+    if(parts.length >= 3 && parts[0].length <= 2 && parts[1].length <= 2){
+      let [d,m,y] = parts;
+      y = y.split(' ')[0];
+      if(y.length === 2) y = '20'+y;
+      return new Date(parseInt(y,10), parseInt(m,10)-1, parseInt(d,10));
+    }
+    const parsed = Date.parse(s);
+    if(!Number.isNaN(parsed)) return new Date(parsed);
+  }
+  return new Date(val);
 }
 
 function getMonth(dateStr){
@@ -1037,17 +1053,17 @@ function parseFile(file, accountType, accountName){
       rows = XLSX.utils.sheet_to_json(sheet);
     }
     rows.forEach(r=>{
-      let date='';
+      let dateRaw='';
       let description='';
       let amount='';
       if(accountType === 'Monzo'){
-        date = r.Date || r.date;
+        dateRaw = r.Date || r.date;
         description = r.Description || r.Name || r.name || '';
         if(r['Money Out']) amount = -parseFloat(r['Money Out']);
         if(r['Money In']) amount = parseFloat(r['Money In']);
         if(r.Amount) amount = parseFloat(r.Amount);
       } else if(accountType === 'TSB') {
-        date = r['Transaction date'] || r['Transaction Date'] || r.Date || r.date || '';
+        dateRaw = r['Transaction date'] || r['Transaction Date'] || r.Date || r.date || '';
         description = r['Transaction description'] || r.Description || '';
         const debit = parseFloat(r['Debit Amount'] || r['Debit amount'] || r.Debit || r['Debit'] || '');
         const credit = parseFloat(r['Credit amount'] || r['Credit Amount'] || r.Credit || r['Credit'] || '');
@@ -1058,10 +1074,12 @@ function parseFile(file, accountType, accountName){
         keys.forEach(k=>{
           const lower=k.toLowerCase();
           if(lower.includes('description')) description = r[k];
-          if(lower === 'date' || lower.startsWith('date ')) date = r[k];
+          if(lower === 'date' || lower.startsWith('date ')) dateRaw = r[k];
           if(lower.includes('amount')) amount = r[k];
         });
       }
+      const parsedDate = parseDate(dateRaw);
+      const date = Number.isNaN(parsedDate.getTime()) ? '' : parsedDate.toISOString().slice(0,10);
       const tx = {
         id: financeData.nextTransactionId++,
         date,
@@ -1096,11 +1114,9 @@ function parseFile(file, accountType, accountName){
 
 window.addEventListener('DOMContentLoaded', () => {
   loadFinance();
-  document.querySelector('.tabs').addEventListener('click', e => {
-    if (e.target.id === 'tab-upload') showTab('upload');
-    else if (e.target.id === 'tab-code') showTab('code');
-    else if (e.target.id === 'tab-budgets') showTab('budgets');
-  });
+  document.getElementById('tab-upload').addEventListener('click', () => showTab('upload'));
+  document.getElementById('tab-code').addEventListener('click', () => showTab('code'));
+  document.getElementById('tab-budgets').addEventListener('click', () => showTab('budgets'));
 });
 document.getElementById('add-account').addEventListener('click', () => {
   const name = document.getElementById('new-account').value.trim();
