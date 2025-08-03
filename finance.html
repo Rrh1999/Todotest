@@ -892,6 +892,123 @@ function renderSettingsSections(){
   });
 }
 
+function renderSettingsSections(){
+  document.querySelectorAll('.settings-section').forEach(container=>{
+    container.innerHTML = `
+      <h3>Budget Settings</h3>
+      <form class="type-form">
+        <input type="text" class="new-type-name" placeholder="New Category">
+        <button type="submit">Add Category</button>
+      </form>
+      <ul class="type-list"></ul>
+      <form class="subtype-form">
+        <select class="subtype-type"></select>
+        <input type="text" class="subtype-name" placeholder="Sub Type Name">
+        <input type="number" class="subtype-amount" placeholder="Amount">
+        <label><input type="checkbox" class="subtype-recurring">Recurring</label>
+        <input type="date" class="subtype-date">
+        <button type="submit">Add Sub Type</button>
+      </form>
+      <div class="subtype-lists"></div>`;
+    const typeForm = container.querySelector('.type-form');
+    typeForm.addEventListener('submit', e=>{
+      e.preventDefault();
+      const name = container.querySelector('.new-type-name').value.trim();
+      if(!name || financeData.budgetCategories.includes(name)) return;
+      financeData.budgetCategories.push(name);
+      container.querySelector('.new-type-name').value='';
+      saveFinance();
+      updateTypeOptions();
+      renderBudgets();
+      renderOverview();
+      renderSettingsSections();
+    });
+    const subtypeForm = container.querySelector('.subtype-form');
+    const typeSelect = container.querySelector('.subtype-type');
+    function fillTypes(){
+      typeSelect.innerHTML = '<option value="">Select type</option>';
+      financeData.budgetCategories.forEach(t=>{ const o=document.createElement('option'); o.value=t; o.textContent=t; typeSelect.appendChild(o); });
+    }
+    fillTypes();
+    subtypeForm.addEventListener('submit', e=>{
+      e.preventDefault();
+      const type = typeSelect.value;
+      const name = container.querySelector('.subtype-name').value.trim();
+      const amt = parseFloat(container.querySelector('.subtype-amount').value);
+      const rec = container.querySelector('.subtype-recurring').checked;
+      const date = container.querySelector('.subtype-date').value;
+      if(!type || !name) return;
+      financeData.budgets.push({id:financeData.nextBudgetId++, type, name, amount:amt, recurring:rec, date, archived:false});
+      container.querySelector('.subtype-name').value='';
+      container.querySelector('.subtype-amount').value='';
+      container.querySelector('.subtype-recurring').checked=false;
+      container.querySelector('.subtype-date').value='';
+      saveFinance();
+      renderBudgets();
+      renderOverview();
+      renderSettingsSections();
+    });
+
+    const typeList = container.querySelector('.type-list');
+    financeData.budgetCategories.forEach(cat=>{
+      const li=document.createElement('li');
+      li.textContent=cat;
+      if(!cat.startsWith('Other')){
+        const del=document.createElement('button');
+        del.textContent='Delete';
+        del.addEventListener('click',()=>{
+          if(confirm('Delete category and all its sub budgets? This will remove related types from transactions.')){
+            financeData.budgets = financeData.budgets.filter(b=>b.type!==cat);
+            financeData.transactions.forEach(t=>{ if(t.type===cat){ t.type=''; t.subType=''; } });
+            financeData.rules = financeData.rules.filter(r=>r.type!==cat);
+            financeData.budgetCategories = financeData.budgetCategories.filter(c=>c!==cat);
+            saveFinance();
+            renderBudgets();
+            renderOverview();
+            renderTransactions();
+            renderRules();
+            updateTypeOptions();
+            renderSettingsSections();
+          }
+        });
+        li.appendChild(del);
+      }
+      typeList.appendChild(li);
+    });
+
+    const subLists = container.querySelector('.subtype-lists');
+    financeData.budgetCategories.forEach(cat=>{
+      const subs = financeData.budgets.filter(b=>b.type===cat);
+      if(!subs.length) return;
+      const div=document.createElement('div');
+      const title=document.createElement('strong'); title.textContent=cat; div.appendChild(title);
+      const ul=document.createElement('ul');
+      subs.forEach(sub=>{
+        const li=document.createElement('li');
+        li.textContent=sub.name;
+        const del=document.createElement('button'); del.textContent='Delete';
+        del.addEventListener('click',()=>{
+          if(confirm('Delete this sub budget? This will remove it from any transactions.')){
+            financeData.budgets = financeData.budgets.filter(b=>!(b.type===sub.type && b.name===sub.name));
+            financeData.transactions.forEach(t=>{ if(t.type===sub.type && t.subType===sub.name){ t.type=''; t.subType=''; } });
+            financeData.rules = financeData.rules.filter(r=>!(r.type===sub.type && r.subType===sub.name));
+            saveFinance();
+            renderBudgets();
+            renderOverview();
+            renderTransactions();
+            renderRules();
+            renderSettingsSections();
+          }
+        });
+        li.appendChild(del);
+        ul.appendChild(li);
+      });
+      div.appendChild(ul);
+      subLists.appendChild(div);
+    });
+  });
+}
+
 function renderRules(){
   const tbody = document.querySelector('#rule-table tbody');
   if(!tbody) return;
@@ -1215,7 +1332,6 @@ function renderOverview(){
         } else {
           h+=`<td>${subBudget.toFixed(2)}</td>`;
         }
-      }
       h+=`<td>${spentSub.toFixed(2)}</td>`;
       if(showRem) h+=`<td style="color:${remSub<0?'red':'green'}">${remSub.toFixed(2)}</td>`;
       h+='<td></td>';
