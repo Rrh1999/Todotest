@@ -18,7 +18,7 @@ header {
 #main { flex: 1; padding: 1rem; }
 .task-list { list-style: none; padding: 0; }
 .task-list li { margin: 0.25rem 0; padding: 0.25rem; border-bottom: 1px solid #ddd; display:flex; justify-content: space-between; align-items:center; flex-wrap:wrap; }
-#todayListContainer{max-height:400px;overflow-y:auto;overflow-x:hidden;width:calc(100% - 1rem);padding-right:1rem;}
+#todayListContainer{width:calc(100% - 1rem);padding-right:1rem;}
 .overdue { color: red; }
 .due { color: orange; }
 .due-soon { font-weight: bold; }
@@ -53,6 +53,8 @@ header {
   </div>
   <div id="main">
     <h2>Today</h2>
+    <input type="text" id="quickInput" placeholder="New item">
+    <button onclick="addQuickItem()">Add</button>
     <button onclick="clearToday()">Clear</button>
     <div id="todayListContainer">
       <ul id="todayList" class="task-list"></ul>
@@ -61,7 +63,7 @@ header {
 </div>
 <script>
 let projects=[], weeklyTasks=[], oneOffTasks=[], recurringTasks=[], stretchTasks=[], bigTasks=[], deletedTasks=[], shoppingList=[], longTermList=[], generalList=[];
-let todayList=[], todayTasks=[];
+let todayList=[], todayTasks=[], todayQuickHistory=[];
 let overdueTasks=[], dueTasks=[];
 let nextId=1;
 let workDataStore={}, workTasks=[], workCalendar=[];
@@ -109,6 +111,11 @@ function taskScheduledToday(type,id){
 function formatISO(date){const d=new Date(date);const y=d.getFullYear();const m=String(d.getMonth()+1).padStart(2,'0');const day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
 function formatUK(date){const d=new Date(date);if(isNaN(d)) return date||'';return d.toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'2-digit'});}
 function startOfWeek(date){const d=new Date(date);const day=d.getDay();const diff=(day===0?-6:1-day);d.setDate(d.getDate()+diff);d.setHours(0,0,0,0);return d;}
+function prevDueDate(task,date){const days=task.days.map(d=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(d));const d=new Date(date);for(let i=0;i<7;i++){if(days.includes(d.getDay())) return new Date(d);d.setDate(d.getDate()-1);}return null;}
+function nextDueDate(task,date){const days=task.days.map(d=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(d));const d=new Date(date);for(let i=0;i<7;i++){if(days.includes(d.getDay())) return new Date(d);d.setDate(d.getDate()+1);}return null;}
+function nearestDueDate(task,date){const prev=prevDueDate(task,date);const next=nextDueDate(task,date);if(!prev) return formatISO(next);if(!next) return formatISO(prev);const mid=new Date(prev.getTime()+(next-prev)/2);return date<mid?formatISO(prev):formatISO(next);}
+function lastDueDate(task){return prevDueDate(task,new Date());}
+function updateMissed(task){const last=new Date(task.dateLastChecked);const today=new Date();let d=new Date(last);while(d<=today){const dayName=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];const iso=formatISO(d);if(d>last&&task.days.includes(dayName)){if(!task.completedDates.includes(iso)&&!task.missedDates.includes(iso)){task.missedDates.push(iso);}}d.setDate(d.getDate()+1);}task.dateLastChecked=formatISO(today);saveData();}
 async function loadData(){
   try{
     const res=await fetch('/api/index-data');
@@ -116,7 +123,7 @@ async function loadData(){
       const obj=await res.json();
       projects=obj.projects||[];weeklyTasks=obj.weeklyTasks||[];oneOffTasks=obj.oneOffTasks||[];recurringTasks=obj.recurringTasks||[];
       stretchTasks=obj.stretchTasks||[];bigTasks=obj.bigTasks||[];deletedTasks=obj.deletedTasks||[];shoppingList=obj.shoppingList||[];longTermList=obj.longTermList||[];
-      generalList=obj.generalList||[];todayList=obj.todayList||[];nextId=obj.nextId||1;
+      generalList=obj.generalList||[];todayList=obj.todayList||[];todayQuickHistory=obj.todayQuickHistory||[];nextId=obj.nextId||1;
     }
     const resW=await fetch('/api/work-data');
     if(resW.ok){
@@ -133,7 +140,7 @@ async function loadData(){
     }
   }catch(e){console.error('Failed to load data',e);}
 }
-async function saveData(){const data={projects,weeklyTasks,oneOffTasks,recurringTasks,stretchTasks,bigTasks,deletedTasks,shoppingList,longTermList,generalList,todayList,nextId};try{await fetch('/api/index-data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}catch(e){console.error('Failed to save data',e);}}
+async function saveData(){const data={projects,weeklyTasks,oneOffTasks,recurringTasks,stretchTasks,bigTasks,deletedTasks,shoppingList,longTermList,generalList,todayList,nextId,todayQuickHistory};try{await fetch('/api/index-data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}catch(e){console.error('Failed to save data',e);}}
 async function saveWorkData(){
   workDataStore.workTasks = workTasks;
   try{
@@ -148,17 +155,7 @@ async function saveDiyData(){
   }catch(e){console.error('Failed to save diy data',e);}
 }
 function weeklyDueSoon(task){const today=new Date();for(let i=0;i<7;i++){const d=new Date(today);d.setDate(today.getDate()+i);const name=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];if(task.days.includes(name))return true;}return false;}
-function weeklyMissed(task){
-  const missed = task.missedDates || [];
-  if(!missed.length) return false;
-  const today = new Date();
-  const start = startOfWeek(today);
-  start.setDate(start.getDate() - 7); // start of last week
-  return missed.some(d => {
-    const dt = new Date(d);
-    return dt >= start && dt <= today;
-  });
-}
+function weeklyMissed(task){const last=lastDueDate(task);if(!last) return false;const iso=formatISO(last);return task.missedDates&&task.missedDates.includes(iso);}
 function categorize(){
   overdueTasks=[];
   dueTasks=[];
@@ -168,13 +165,7 @@ function categorize(){
 
   const pushDue=(type,item,soon)=>dueTasks.push({category:'due',type,item,soon});
 
-  weeklyTasks.filter(t=>t.status==='open').forEach(t=>{
-    if(weeklyMissed(t)){
-      overdueTasks.push({category:'overdue',type:'weekly',item:t});
-    }else{
-      pushDue('weekly',t,weeklyDueSoon(t));
-    }
-  });
+  weeklyTasks.filter(t=>t.status==='open').forEach(t=>{updateMissed(t);if(weeklyMissed(t)){overdueTasks.push({category:'overdue',type:'weekly',item:t});}else{pushDue('weekly',t,weeklyDueSoon(t));}});
 
   oneOffTasks.filter(t=>t.status==='open').forEach(t=>{
     const due=t.dueDate?new Date(t.dueDate):null;
@@ -199,6 +190,10 @@ function categorize(){
 function rebuildToday(){
   todayTasks=[];
   todayList.forEach(r=>{
+    if(r.type==='quick'){
+      todayTasks.push({category:'quick',type:'quick',item:r});
+      return;
+    }
     let arr;
     if(r.type==='oneoff') arr=oneOffTasks;
     else if(r.type==='recurring') arr=recurringTasks;
@@ -373,18 +368,22 @@ function renderToday(){
     li.dataset.index=i;
     if(t.depth) li.style.paddingLeft=(t.depth)+'rem';
     const text=document.createElement('span');
-    let page='';
-    if(['oneoff','recurring','weekly','stretch','big'].includes(t.type)) page='Todo';
-    else if(t.type==='work') page='Work';
-    else if(t.type==='diy' || t.type==='diybig') page='DIY';
-    let label=`${t.item.name} (${t.item.project})`;
-    if(t.type==='big' || t.type==='diybig') label='[BIG] '+label;
-    let info='';
-    if(page==='Todo'){info=t.type;}
-    else if(page==='Work'){info=t.item.project;}
-    const prefix=page?`[${page}${info?` - ${info}`:''}] `:'';
+    let page='', label='', prefix='';
+    if(t.type==='quick'){
+      label=t.item.name;
+    }else{
+      if(['oneoff','recurring','weekly','stretch','big'].includes(t.type)) page='Todo';
+      else if(t.type==='work') page='Work';
+      else if(t.type==='diy' || t.type==='diybig') page='DIY';
+      label=`${t.item.name} (${t.item.project})`;
+      if(t.type==='big' || t.type==='diybig') label='[BIG] '+label;
+      let info='';
+      if(page==='Todo'){info=t.type;}
+      else if(page==='Work'){info=t.item.project;}
+      prefix=page?`[${page}${info?` - ${info}`:''}] `:'';
+      if(taskScheduledToday(t.type,t.item.id)) text.style.fontWeight='bold';
+    }
     text.textContent=prefix+label;
-    if(taskScheduledToday(t.type,t.item.id)) text.style.fontWeight='bold';
     const btnBox=document.createElement('span');
     const up=document.createElement('button');
     up.textContent='Up';
@@ -478,10 +477,21 @@ function moveTodayDown(idx){
   saveData();
   renderToday();
 }
+function addQuickItem(){
+  const input=document.getElementById('quickInput');
+  const name=input.value.trim();
+  if(!name) return;
+  todayList.push({type:'quick',id:nextId++,name,added:formatISO(new Date())});
+  input.value='';
+  rebuildToday();
+  saveData();
+  renderToday();
+}
 function removeToday(idx){
   const t=todayTasks.splice(idx,1)[0];
   todayList=todayList.filter(r=>!(r.type===t.type&&r.id===t.item.id));
-  if(t.category==='overdue') overdueTasks.push(t);
+  if(t.type==='quick') todayQuickHistory.push({name:t.item.name,added:t.item.added,done:false});
+  else if(t.category==='overdue') overdueTasks.push(t);
   else if(t.category==='due') dueTasks.push(t);
   saveData();
   renderSide();
@@ -490,7 +500,8 @@ function removeToday(idx){
 }
 function clearToday(){
   todayTasks.forEach(t=>{
-    if(t.category==='overdue') overdueTasks.push(t);
+    if(t.type==='quick') todayQuickHistory.push({name:t.item.name,added:t.item.added,done:false});
+    else if(t.category==='overdue') overdueTasks.push(t);
     else if(t.category==='due') dueTasks.push(t);
   });
   todayTasks=[];
@@ -505,7 +516,9 @@ function completeToday(idx){
   const t=todayTasks.splice(idx,1)[0];
   todayList=todayList.filter(r=>!(r.type===t.type&&r.id===t.item.id));
   const now=new Date();
-  if(t.type==='oneoff'){
+  if(t.type==='quick'){
+    todayQuickHistory.push({name:t.item.name,added:t.item.added,done:true,completed:formatISO(now)});
+  }else if(t.type==='oneoff'){
     t.item.completedDates.push(formatISO(now));
     t.item.status='closed';
     t.item.closedDate=formatISO(now);
@@ -515,7 +528,7 @@ function completeToday(idx){
     t.item.lastCompleted=formatISO(now);
     t.item.dueDate=computeNextDue(t.item,now);
   }else if(t.type==='weekly'){
-    const iso=formatISO(now);
+    const iso=nearestDueDate(t.item,now);
     if(!t.item.completedDates.includes(iso)) t.item.completedDates.push(iso);
     t.item.missedDates=t.item.missedDates.filter(d=>d!==iso);
   }else if(t.type==='work'){

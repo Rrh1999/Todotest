@@ -2,8 +2,10 @@
   "accounts": [],
   "transactions": [],
   "nextTransactionId": 1,
+  "budgetCategories": [],
   "budgets": [],
   "nextBudgetId": 1,
   "rules": [],
-  "budgetPeriods": []
+  "budgetPeriods": [],
+  "startBalances": { "date": "", "accounts": {} }
 }
