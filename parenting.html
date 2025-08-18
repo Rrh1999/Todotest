@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Parenting</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body { margin:0; padding:0; }
+    section { padding:1rem; }
+    .hidden { display:none !important; }
+    .inline-form { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:end; }
+    .inline-form label { display:flex; flex-direction:column; font-size:0.9rem; }
+    .inline-form input[type="text"], .inline-form input[type="color"] { padding:0.35rem; font-size:1rem; }
+    table.task-table { width:100%; border-collapse:collapse; margin-top:0.75rem; }
+    .task-table th, .task-table td { border:1px solid #e2e5e9; padding:0.5rem; text-align:left; }
+    .task-table th { background:#C7BBB4; color:#2B2C29; }
+    .color-swatch { display:inline-block; width:18px; height:18px; border-radius:50%; border:1px solid #999; vertical-align:middle; margin-right:6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Parenting</h1>
+  </header>
+  <div id="nav-placeholder"></div>
+  <script src="nav-loader.js"></script>
+
+  <section>
+    <div class="toggle section-header" onclick="toggle('settings')">Settings</div>
+    <div id="settings" class="hidden">
+      <h3>Add Skill</h3>
+      <div class="inline-form" style="margin-bottom:0.5rem;">
+        <label>Skill Name
+          <input id="skillName" type="text" placeholder="e.g., Reading practice" />
+        </label>
+        <label>Color
+          <input id="skillColor" type="color" value="#B5A89A" />
+        </label>
+        <button class="submit-btn" onclick="addSkill()">Add</button>
+      </div>
+      <div id="skills"></div>
+    </div>
+  </section>
+
+  <div id="editSkillModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Edit Skill</h3>
+        <span class="close" onclick="closeEditSkillModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <label>Skill Name
+          <input id="editSkillName" type="text" />
+        </label>
+        <label>Color
+          <input id="editSkillColor" type="color" />
+        </label>
+        <label>Status
+          <select id="editSkillStatus">
+            <option value="open">Open</option>
+            <option value="closed">Closed</option>
+          </select>
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button class="cancel-btn" onclick="closeEditSkillModal()">Cancel</button>
+        <button class="submit-btn" onclick="saveSkillChanges()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function toggle(id){ const el=document.getElementById(id); if(el) el.classList.toggle('hidden'); }
+
+    let skills=[]; let activities=[]; let nextSkillId=1; let nextActivityId=1; let editingSkillId=null;
+
+    async function loadParenting(){
+      try {
+        const res = await fetch('/api/parenting-data');
+        if(!res.ok) throw new Error('Failed to load parenting-data');
+        const data = await res.json();
+        skills = Array.isArray(data.skills)?data.skills:[];
+        activities = Array.isArray(data.activities)?data.activities:[];
+        nextSkillId = Number(data.nextSkillId)||1;
+        nextActivityId = Number(data.nextActivityId)||1;
+      } catch(err){
+        console.warn('Using defaults for parenting data', err);
+        skills=[]; activities=[]; nextSkillId=1; nextActivityId=1;
+      }
+    }
+
+    async function saveParenting(){
+      const payload = { skills, activities, nextSkillId, nextActivityId };
+      await fetch('/api/parenting-data', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+      });
+    }
+
+    function hasOpenActivities(skillId){
+      if(!Array.isArray(activities) || activities.length===0) return false;
+      return activities.some(a => a.skillId===skillId && !a.completed);
+    }
+
+    function addSkill(){
+      const name = (document.getElementById('skillName').value||'').trim();
+      const color = document.getElementById('skillColor').value||'#B5A89A';
+      if(!name) return;
+      skills.push({ id: nextSkillId++, name, color, closed:false });
+      document.getElementById('skillName').value='';
+      renderSkills();
+      saveParenting();
+    }
+
+    function openEditSkillModal(id){
+      const s = skills.find(x=>x.id===id); if(!s) return;
+      editingSkillId=id;
+      document.getElementById('editSkillName').value = s.name||'';
+      document.getElementById('editSkillColor').value = s.color||'#B5A89A';
+      document.getElementById('editSkillStatus').value = s.closed ? 'closed' : 'open';
+      document.getElementById('editSkillModal').classList.remove('hidden');
+    }
+
+    function closeEditSkillModal(){
+      document.getElementById('editSkillModal').classList.add('hidden');
+      editingSkillId=null;
+    }
+
+    function saveSkillChanges(){
+      if(editingSkillId==null) return;
+      const s = skills.find(x=>x.id===editingSkillId); if(!s) return;
+      s.name = (document.getElementById('editSkillName').value||'').trim();
+      s.color = document.getElementById('editSkillColor').value||'#B5A89A';
+      s.closed = (document.getElementById('editSkillStatus').value==='closed');
+      closeEditSkillModal();
+      renderSkills();
+      saveParenting();
+    }
+
+    function toggleClosed(id){ const s=skills.find(x=>x.id===id); if(!s) return; s.closed=!s.closed; renderSkills(); saveParenting(); }
+    function deleteSkill(id){ skills = skills.filter(s=>s.id!==id); renderSkills(); saveParenting(); }
+
+    function renderSkills(){
+      const container = document.getElementById('skills');
+      container.innerHTML='';
+      const table = document.createElement('table'); table.className='task-table';
+      const thead = document.createElement('thead'); const hr=document.createElement('tr');
+      ['Skill','Task Status','Color','Action'].forEach(t=>{ const th=document.createElement('th'); th.textContent=t; hr.appendChild(th); });
+      thead.appendChild(hr); table.appendChild(thead);
+      const tbody = document.createElement('tbody');
+      skills.forEach(s=>{
+        const tr=document.createElement('tr');
+        const tdName=document.createElement('td'); tdName.textContent=s.name||''; tr.appendChild(tdName);
+        const tdStatus=document.createElement('td'); tdStatus.textContent = s.closed ? 'Closed' : (hasOpenActivities(s.id) ? 'Allocated' : 'Open'); tr.appendChild(tdStatus);
+        const tdColor=document.createElement('td');
+        const sw=document.createElement('span'); sw.className='color-swatch'; sw.style.background=s.color||'#B5A89A'; tdColor.appendChild(sw);
+        const code=document.createElement('span'); code.textContent=s.color||''; tdColor.appendChild(code); tr.appendChild(tdColor);
+        const tdAct=document.createElement('td');
+        const bEdit=document.createElement('button'); bEdit.textContent='Edit'; bEdit.onclick=()=>openEditSkillModal(s.id);
+        const bClose=document.createElement('button'); bClose.textContent=s.closed?'Reopen':'Close'; bClose.onclick=()=>toggleClosed(s.id);
+        const bDel=document.createElement('button'); bDel.textContent='Delete'; bDel.onclick=()=>deleteSkill(s.id);
+        [bEdit,bClose,bDel].forEach(b=>{ b.style.marginRight='0.25rem'; });
+        tdAct.appendChild(bEdit); tdAct.appendChild(bClose); tdAct.appendChild(bDel);
+        tr.appendChild(tdAct);
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      container.appendChild(table);
+    }
+
+    async function init(){ await loadParenting(); renderSkills(); }
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
+

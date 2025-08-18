@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soul Activities</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+body { margin:0; padding:0; }
+section { padding:1rem; }
+.hidden { display:none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Soul Activities</h1>
+</header>
+<div id="nav-placeholder"></div>
+<script src="nav-loader.js"></script>
+
+<!-- Settings Section -->
+<section>
+  <div class="toggle section-header" onclick="toggle('settings')">
+    Settings
+    <span class="pin-star" onclick="event.stopPropagation();togglePin('settings')">
+      <svg viewBox="0 0 20 20" fill="none" stroke="#2B2C29" stroke-width="1.5"><polygon points="10,2 12.5,7.5 18,8 14,12 15,18 10,15 5,18 6,12 2,8 7.5,7.5"/></svg>
+    </span>
+  </div>
+  <div id="settings" class="hidden">
+    <div class="toggle add-toggle" onclick="toggle('addProjectForm')">Add Project</div>
+    <div id="addProjectForm" class="hidden subtoggle form-grid">
+      <label>Project Name<input type="text" id="projectName" placeholder="e.g. Meditation"></label>
+      <label>Color<input type="color" id="projectColor" value="#81B29A"></label>
+      <div style="grid-column:1/-1;text-align:center;">
+        <button class="submit-btn" onclick="addProject()">Add</button>
+      </div>
+    </div>
+    <div id="projectsTable"></div>
+  </div>
+</section>
+
+<!-- Meditation Section -->
+<section>
+  <div class="toggle section-header" onclick="toggle('meditationSection')">
+    Meditation
+    <span class="pin-star" onclick="event.stopPropagation();togglePin('meditationSection')">
+      <svg viewBox="0 0 20 20" fill="none" stroke="#2B2C29" stroke-width="1.5">
+        <polygon points="10,2 12.5,7.5 18,8 14,12 15,18 10,15 5,18 6,12 2,8 7.5,7.5"/>
+      </svg>
+    </span>
+  </div>
+  <div id="meditationSection" class="hidden">
+    <div class="toggle add-toggle" onclick="toggle('addMeditationForm')">Add Meditation</div>
+    <div id="addMeditationForm" class="hidden subtoggle form-grid">
+      <label>Name<input type="text" id="meditationName"></label>
+      <label>Description<textarea id="meditationDesc"></textarea></label>
+      <label>Upload Audio<input type="file" id="meditationAudio" accept="audio/*"></label>
+      <div style="grid-column:1/-1;text-align:center;">
+        <button class="submit-btn" onclick="addMeditation()">Submit</button>
+      </div>
+    </div>
+    <div id="meditationTable"></div>
+    <div class="toggle add-toggle" onclick="toggle('archivedMeditationSection')">View Archived Meditations</div>
+    <div id="archivedMeditationSection" class="hidden">
+      <div id="archivedMeditationTable"></div>
+    </div>
+  </div>
+</section>
+
+<!-- More soul sections can be added here using the same format -->
+
+<script>
+function toggle(id){ const el=document.getElementById(id); if(el) el.classList.toggle('hidden'); }
+function togglePin(id){ const header=document.querySelector(`[onclick*="toggle('${id}')"]`); const star=header?header.querySelector('.pin-star'):null; if(star) star.classList.toggle('pinned'); }
+
+let projects=[]; let nextProjectId=1;
+
+async function loadSoul(){
+  try{ const res=await fetch('/api/soul-data'); if(res.ok){ const d=await res.json(); projects=d.projects||[]; nextProjectId=d.nextProjectId||1; } }catch(e){ }
+}
+async function saveSoul(){ const payload={projects,nextProjectId}; await fetch('/api/soul-data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); }
+
+function addProject(){
+  const nameEl=document.getElementById('projectName'); const colorEl=document.getElementById('projectColor');
+  const name=(nameEl.value||'').trim(); if(!name){ nameEl.focus(); return; }
+  const color=colorEl.value||'#81B29A';
+  projects.push({ id:String(nextProjectId++).padStart(5,'0'), name, color, closed:false });
+  nameEl.value='';
+  renderProjects();
+  saveSoul();
+}
+
+function toggleClosed(id){ const p=projects.find(x=>x.id===id); if(!p) return; p.closed=!p.closed; renderProjects(); saveSoul(); }
+function deleteProject(id){ projects=projects.filter(p=>p.id!==id); renderProjects(); saveSoul(); }
+
+function renderProjects(){
+  const container=document.getElementById('projectsTable');
+  if(!projects.length){ container.innerHTML='<p style="opacity:.7">No projects yet.</p>'; return; }
+  const head=`<div class="task-row grid-header" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:.25rem;align-items:center;font-weight:600;">
+    <div>Project</div><div>Status</div><div>Colour</div><div>Actions</div></div>`;
+  const rows=projects.map(p=>`<div class="task-row" style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:.25rem;align-items:center;border:1px solid #ccc;padding:.25rem;margin-top:.25rem;background:var(--color-surface)">
+    <div>${p.name}</div>
+    <div>${p.closed? 'Closed':'Active'}</div>
+    <div><span title="${p.color}" style="display:inline-block;width:18px;height:18px;border-radius:50%;border:1px solid #aaa;background:${p.color}"></span></div>
+    <div>
+      <button class="btn" onclick="toggleClosed('${p.id}')">${p.closed? 'Open':'Close'}</button>
+      <button class="btn" onclick="deleteProject('${p.id}')">Delete</button>
+    </div>
+  </div>`).join('');
+  container.innerHTML=head+rows;
+}
+
+async function init(){ await loadSoul(); renderProjects(); }
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

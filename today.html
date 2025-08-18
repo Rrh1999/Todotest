@@ -4,15 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Today</title>
+<link rel="stylesheet" href="styles.css">
 <style>
-body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 0; }
-header {
-  background: #fff;
-  color: #333;
-  padding: 1rem;
-  text-align: center;
-  border-bottom: 1px solid #ddd;
-}
+/* page specific layout only */
+body { margin: 0; padding: 0; }
+/* header styling removed to defer to global stylesheet */
 #container { display: flex; }
 #side { width: 40%; padding: 1rem; border-left: 1px solid #ccc; }
 #main { flex: 1; padding: 1rem; }
@@ -31,8 +27,8 @@ header {
 <body>
 <header>
   <h1>Today</h1>
-  <div id="nav-placeholder"></div>
 </header>
+<div id="nav-placeholder"></div>
 <script src="nav-loader.js"></script>
 <div id="container">
   <div id="side">
@@ -46,8 +42,9 @@ header {
     <ul id="diyTaskList" class="task-list hidden"></ul>
     <label style="display:block;margin-top:0.5rem;"><input type="checkbox" id="stretchToggle"> Show Stretch Tasks</label>
     <ul id="stretchTaskList" class="task-list hidden"></ul>
-    <label style="display:block;margin-top:0.5rem;"><input type="checkbox" id="bigToggle"> Show Big Tasks</label>
-    <ul id="bigTaskList" class="task-list hidden"></ul>
+  <label style="display:block;margin-top:0.5rem;"><input type="checkbox" id="bigToggle"> Show Big Tasks</label>
+  <ul id="bigTaskList" class="task-list hidden"></ul>
+    
     <label style="display:block;margin-top:0.5rem;"><input type="checkbox" id="diyBigToggle"> Show DIY Big Tasks</label>
     <ul id="diyBigTaskList" class="task-list hidden"></ul>
   </div>
@@ -353,9 +350,11 @@ function renderDiyBigTasks(){
 function updateToggles(){
   const wt=document.getElementById('workToggle');
   const dt=document.getElementById('diyToggle');
+  const bt=document.getElementById('bigToggle');
   const db=document.getElementById('diyBigToggle');
   document.getElementById('workTaskList').classList.toggle('hidden', !wt.checked);
   document.getElementById('diyTaskList').classList.toggle('hidden', !dt.checked);
+  document.getElementById('bigTaskList').classList.toggle('hidden', !bt.checked);
   document.getElementById('diyBigTaskList').classList.toggle('hidden', !db.checked);
 }
 function renderToday(){
@@ -576,6 +575,7 @@ document.getElementById('stretchToggle').addEventListener('change',e=>{
 document.getElementById('bigToggle').addEventListener('change',e=>{
   document.getElementById('bigTaskList').classList.toggle('hidden',!e.target.checked);
   if(e.target.checked) renderBigTasks();
+  updateToggles();
 });
 document.getElementById('diyBigToggle').addEventListener('change',e=>{
   document.getElementById('diyBigTaskList').classList.toggle('hidden',!e.target.checked);

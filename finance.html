@@ -1,0 +1,2346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finance Manager</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+body{margin:0;padding:0;}
+/* header styling removed to inherit global */
+.tabs{display:flex;gap:0;padding:0;background:#B5A89A;justify-content:center;width:100%;border-radius:0;margin:0;font-weight:bold;}
+.tabs button{padding:0.7rem 1rem;border:none;cursor:pointer;background:transparent;color:#2B2C29;font-weight:bold;border-radius:0;transition:background .18s,color .18s;}
+.tabs button:hover, .tabs button.active{background:#2B2C29;color:#E7E4D6;}
+.tab-content{display:none;padding:1rem;}
+.tab-content.active{display:block;}
+table{border-collapse:collapse;width:100%;margin-top:1rem;font-size:0.9rem;}
+th,td{border:1px solid #ccc;padding:0.25rem 0.5rem;}
+#pots-display{display:flex;justify-content:space-between;margin:1rem;}
+.pot-column{flex:1;display:flex;flex-wrap:wrap;gap:0.5rem;}
+#saving-pots{justify-content:flex-end;}
+.pot{border:1px solid #ccc;padding:0.5rem;width:120px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:0.25rem;}
+.pot-name{font-weight:bold;}
+.pot.saving{background:#d4edda;}
+.pot.debt{background:#f8d7da;}
+.pot .actions{display:flex;gap:0.25rem;}
+.pot .actions button{margin:0 2px;}
+.toggle{cursor:pointer;padding:0.5rem;border-radius:4px;margin:1rem 0;text-align:center;}
+.section-header{font-size:1.2rem;font-weight:bold;position:relative;}
+.section-header .pin-star {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  cursor: pointer;
+  z-index: 10;
+}
+.section-header .pin-star svg {
+  width: 16px;
+  height: 16px;
+}
+.section-header .pin-star.pinned svg {
+  fill: #F7F6F3;
+  stroke: #2B2C29;
+  stroke-width: 1;
+}
+.hidden{display:none!important;}
+.budget-section{padding-bottom:1rem;margin-bottom:1rem;}
+.code-section{padding-bottom:1rem;margin-bottom:1rem;}
+#budgets table{resize:horizontal;overflow:auto;display:block;}
+#budgets table tbody tr:nth-child(even){background:#f2f2f2;}
+#budgets table tbody tr td:first-child{color:#007bff;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Finance Manager</h1>
+</header>
+<div id="nav-placeholder"></div>
+<script src="nav-loader.js"></script>
+<div class="tabs">
+  <button id="tab-settings" type="button">Settings</button>
+  <button id="tab-code" type="button">Code</button>
+  <button id="tab-budgets" type="button">Budgets</button>
+  <button id="tab-pots" type="button">Pots</button>
+</div>
+<div id="settings" class="tab-content active">
+  <section>
+    <div class="toggle section-header" onclick="toggle('upload-section')">
+      Upload Transactions
+      <span class="pin-star" onclick="event.stopPropagation(); togglePin('upload-section')" title="Pin section open">
+        <svg viewBox="0 0 24 24" fill="#2B2C29" stroke="#F7F6F3" stroke-width="1">
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
+        </svg>
+      </span>
+    </div>
+    <div id="upload-section">
+      <form id="upload-form">
+        <label>Account Type
+          <select id="account-type">
+            <option value="TSB">TSB</option>
+            <option value="Monzo">Monzo</option>
+            <option value="Credit Card">Credit Card</option>
+          </select>
+        </label>
+        <label>Account Name
+          <select id="account-name" required></select>
+        </label>
+        <input type="file" id="file-input" accept=".csv,.xls,.xlsx" required>
+        <button type="submit">Upload</button>
+      </form>
+      <div id="upload-msg"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="toggle section-header" onclick="toggle('accounts-section')">
+      Account Management
+      <span class="pin-star" onclick="event.stopPropagation(); togglePin('accounts-section')" title="Pin section open">
+        <svg viewBox="0 0 24 24" fill="#2B2C29" stroke="#F7F6F3" stroke-width="1">
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
+        </svg>
+      </span>
+    </div>
+    <div id="accounts-section">
+      <h3>Accounts</h3>
+      <ul id="accounts-display"></ul>
+      <input type="text" id="new-account" placeholder="Add account">
+      <button id="add-account">Add</button>
+      <datalist id="type-list"></datalist>
+    </div>
+  </section>
+
+  <section>
+    <div class="toggle section-header" onclick="toggle('budget-settings-section')">
+      Budget Settings
+      <span class="pin-star" onclick="event.stopPropagation(); togglePin('budget-settings-section')" title="Pin section open">
+        <svg viewBox="0 0 24 24" fill="#2B2C29" stroke="#F7F6F3" stroke-width="1">
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
+        </svg>
+      </span>
+    </div>
+    <div id="budget-settings-section">
+      <h3>Thirds</h3>
+      <div id="upload-settings" class="settings-section"></div>
+    </div>
+  </section>
+</div>
+<div id="code" class="tab-content">
+  <section>
+    <div class="toggle section-header" onclick="toggle('tx-main')">
+      Transactions
+      <span class="pin-star" onclick="event.stopPropagation(); togglePin('tx-main')" title="Pin section open">
+        <svg viewBox="0 0 24 24" fill="#2B2C29" stroke="#F7F6F3" stroke-width="1">
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
+        </svg>
+      </span>
+    </div>
+    <div id="tx-main">
+      <label><input type="checkbox" id="filter-uncoded">Uncoded only</label>
+      <button id="show-duplicates" type="button">Show Duplicates</button>
+      <button id="download-excel" type="button">Download Excel</button>
+      <button id="delete-selected" type="button">Delete Selected</button>
+      <div id="filter-controls" style="margin-top:0.5rem;">
+        <input type="text" id="search-text" placeholder="Search description or file">
+        <select id="filter-account"><option value="">All accounts</option></select>
+        <select id="filter-type"><option value="">All types</option><option value="__blank">Blank</option></select>
+        <select id="filter-subtype"><option value="">All sub types</option><option value="__blank">Blank</option></select>
+        <input type="date" id="filter-date-from">
+        <input type="date" id="filter-date-to">
+        <input type="number" id="filter-amount-min" placeholder="Min">
+        <input type="number" id="filter-amount-max" placeholder="Max">
+        <label><input type="checkbox" id="toggle-file">See File</label>
+        <button id="apply-filters" type="button">Apply</button>
+      </div>
+      <table id="tx-table">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="select-all"></th>
+            <th>Date <button type="button" class="sort-btn" data-field="date">↕</button></th>
+            <th>Description <button type="button" class="sort-btn" data-field="description">↕</button></th>
+            <th>Amount <button type="button" class="sort-btn" data-field="amount">↕</button></th>
+            <th>Account <button type="button" class="sort-btn" data-field="accountName">↕</button></th>
+            <th class="file-col" style="display:none;">File <button type="button" class="sort-btn" data-field="sourceFile">↕</button></th>
+            <th class="file-col" style="display:none;">Uploaded <button type="button" class="sort-btn" data-field="uploadedAt">↕</button></th>
+            <th>Type <button type="button" class="sort-btn" data-field="type">↕</button></th>
+            <th>Sub Type <button type="button" class="sort-btn" data-field="subType">↕</button></th>
+            <th>Pot <button type="button" class="sort-btn" data-field="pot">↕</button></th>
+            <th>Confirmed <button type="button" class="sort-btn" data-field="confirmed">↕</button></th>
+            <th>Transfer <button type="button" class="sort-btn" data-field="transfer">↕</button></th>
+            <th>Notes <button type="button" class="sort-btn" data-field="notes">↕</button></th>
+            <th>Month <button type="button" class="sort-btn" data-field="month">↕</button></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div id="duplicates-modal" style="display:none;position:fixed;top:10%;left:10%;right:10%;background:#fff;border:1px solid #ccc;padding:1rem;max-height:80%;overflow:auto;">
+        <button id="close-duplicates" type="button">Close</button>
+        <table id="duplicates-table">
+          <thead>
+            <tr><th>Date</th><th>Description</th><th>Amount</th><th>Account</th><th>File</th><th>Action</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="toggle section-header" onclick="toggle('code-rules-main')">
+      Autofill Rules
+      <span class="pin-star" onclick="event.stopPropagation(); togglePin('code-rules-main')" title="Pin section open">
+        <svg viewBox="0 0 24 24" fill="#2B2C29" stroke="#F7F6F3" stroke-width="1">
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
+        </svg>
+      </span>
+    </div>
+    <div id="code-rules-main">
+      <div id="code-settings" class="settings-section"></div>
+    </div>
+  </section>
+</div>
+
+<div id="budgets" class="tab-content">
+  <section>
+    <div class="toggle section-header" onclick="toggle('budget-main')">
+      Budgets
+      <span class="pin-star" onclick="event.stopPropagation(); togglePin('budget-main')" title="Pin section open">
+        <svg viewBox="0 0 24 24" fill="#F7F6F3" stroke="#2B2C29" stroke-width="1">
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
+        </svg>
+      </span>
+    </div>
+    <div id="budget-main">
+      <div id="budget-settings" class="settings-section"></div>
+      <label>Extra Display
+        <select id="extra-display">
+          <option value="merge">Merge extra</option>
+          <option value="separate">Separate extra</option>
+        </select>
+      </label>
+      <table id="budget-table">
+        <thead>
+          <tr><th>Name</th><th>Description</th><th>Amount</th><th>Recurring</th><th>Date</th><th></th><th>Archived</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="toggle section-header" onclick="toggle('period-main')">
+      Budget Periods
+      <span class="pin-star" onclick="event.stopPropagation(); togglePin('period-main')" title="Pin section open">
+        <svg viewBox="0 0 24 24" fill="#2B2C29" stroke="#F7F6F3" stroke-width="1">
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
+        </svg>
+      </span>
+    </div>
+    <div id="period-main">
+      <form id="period-form">
+        <input type="date" id="period-start" required>
+        <input type="date" id="period-end" required>
+        <input type="month" id="period-month" required>
+        <button type="submit">Add Period</button>
+      </form>
+      <table id="period-table">
+        <thead><tr><th>Start</th><th>End</th><th>Month</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="toggle section-header" onclick="toggle('overview-main')">
+      Budget Overview
+      <span class="pin-star" onclick="event.stopPropagation(); togglePin('overview-main')" title="Pin section open">
+        <svg viewBox="0 0 24 24" fill="#2B2C29" stroke="#F7F6F3" stroke-width="1">
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
+        </svg>
+      </span>
+    </div>
+    <div id="overview-main">
+      <label>Months
+        <select id="overview-month" multiple size="4"></select>
+      </label>
+      <label><input type="checkbox" id="show-budgeted" checked>Show Budgeted</label>
+      <label><input type="checkbox" id="show-remaining" checked>Show Remaining</label>
+      <label><input type="checkbox" id="show-income">Show Income</label>
+      <label><input type="checkbox" id="toggle-archived">View Archived Budgets</label>
+      <table id="overview-table">
+        <thead><tr></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="toggle section-header" onclick="toggle('balance-main')">
+      Balance Sheet
+      <span class="pin-star" onclick="event.stopPropagation(); togglePin('balance-main')" title="Pin section open">
+        <svg viewBox="0 0 24 24" fill="#2B2C29" stroke="#F7F6F3" stroke-width="1">
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
+        </svg>
+      </span>
+    </div>
+    <div id="balance-main">
+      <form id="start-balance-form">
+        <label>Starting Date <input type="date" id="start-balance-date"></label>
+        <div id="start-balance-accounts"></div>
+        <button type="submit">Save Starting Balances</button>
+      </form>
+      <label>Month
+        <select id="balance-month"></select>
+      </label>
+      <table id="balance-table">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+<div id="pots" class="tab-content">
+  <section>
+    <div class="toggle section-header" onclick="toggle('create-pots-section')">
+      Create Pots
+      <span class="pin-star" onclick="event.stopPropagation(); togglePin('create-pots-section')" title="Pin section open">
+        <svg viewBox="0 0 24 24" fill="#2B2C29" stroke="#F7F6F3" stroke-width="1">
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
+        </svg>
+      </span>
+    </div>
+    <div id="create-pots-section">
+      <form id="pot-form">
+        <select id="pot-kind">
+          <option value="saving">Saving</option>
+          <option value="debt">Debt</option>
+        </select>
+        <input type="text" id="pot-name" placeholder="Name" required>
+        <select id="pot-account"><option value="">No account</option></select>
+        <input type="text" id="pot-desc" placeholder="Description">
+        <input type="date" id="pot-start" required>
+        <input type="date" id="pot-end">
+        <input type="number" id="pot-goal" placeholder="Goal Amount">
+        <input type="number" id="pot-target" placeholder="Monthly Target">
+        <input type="number" id="pot-starting" placeholder="Starting Amount" required>
+        <button type="submit" id="pot-submit">Create</button>
+      </form>
+    </div>
+  </section>
+
+  <section>
+    <div class="toggle section-header" onclick="toggle('view-pots-section')">
+      View Pots
+      <span class="pin-star" onclick="event.stopPropagation(); togglePin('view-pots-section')" title="Pin section open">
+        <svg viewBox="0 0 24 24" fill="#2B2C29" stroke="#F7F6F3" stroke-width="1">
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"></polygon>
+        </svg>
+      </span>
+    </div>
+    <div id="view-pots-section">
+      <div id="pots-display">
+        <div id="debt-pots" class="pot-column"></div>
+        <div id="saving-pots" class="pot-column"></div>
+      </div>
+    </div>
+  </section>
+</div>
+<div id="pot-modal" style="display:none;position:fixed;top:10%;left:10%;right:10%;background:#fff;border:1px solid #ccc;padding:1rem;max-height:80%;overflow:auto;">
+  <button type="button" id="close-pot-modal">Close</button>
+  <button type="button" id="delete-pot">Delete</button>
+  <form id="pot-view-form">
+    <select id="view-pot-kind">
+      <option value="saving">Saving</option>
+      <option value="debt">Debt</option>
+    </select>
+    <input type="text" id="view-pot-name" placeholder="Name" required>
+    <select id="view-pot-account"><option value="">No account</option></select>
+    <input type="text" id="view-pot-desc" placeholder="Description">
+    <input type="date" id="view-pot-start" required>
+    <input type="date" id="view-pot-end">
+    <input type="number" id="view-pot-goal" placeholder="Goal Amount">
+    <input type="number" id="view-pot-target" placeholder="Monthly Target">
+    <input type="number" id="view-pot-starting" placeholder="Starting Amount" required>
+    <button type="submit">Save</button>
+  </form>
+  <div><strong>Current Amount:</strong> £<span id="view-pot-current"></span></div>
+  <div id="pot-transactions"></div>
+</div>
+<div id="budget-modal" style="display:none;position:fixed;top:10%;left:10%;right:10%;background:#fff;border:1px solid #ccc;padding:1rem;max-height:80%;overflow:auto;"></div>
+<script src="node_modules/papaparse/papaparse.min.js"></script>
+<script src="node_modules/xlsx/dist/xlsx.full.min.js"></script>
+<script>
+let financeData = { accounts: [], transactions: [], nextTransactionId: 1, budgetCategories: [], budgets: [], nextBudgetId: 1, rules: [], budgetPeriods: [], categoryStarts: {}, pots: [], nextPotId: 1 };
+let lastTxCheckbox = null;
+let txSortField = '';
+let txSortDir = 1;
+const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+
+function showTab(id){
+  document.querySelectorAll('.tab-content').forEach(div=>div.classList.remove('active'));
+  const el=document.getElementById(id);
+  if(el) el.classList.add('active');
+}
+
+async function loadFinance(){
+  console.log('Loading finance data...');
+  const res = await fetch('/api/finance-data');
+  financeData = await res.json();
+  console.log('Raw finance data loaded:', financeData);
+  console.log('Pots in loaded data:', financeData.pots ? financeData.pots.length : 'NO POTS ARRAY');
+  console.log('Budgets in loaded data:', financeData.budgets ? financeData.budgets.length : 'NO BUDGETS ARRAY');
+  console.log('Budget periods in loaded data:', financeData.budgetPeriods ? financeData.budgetPeriods.length : 'NO BUDGET PERIODS ARRAY');
+  financeData.budgetCategories = financeData.budgetCategories || [];
+  if(!financeData.budgetCategories.includes('Other \u2013 Budgeted')){
+    financeData.budgetCategories.push('Other \u2013 Budgeted');
+  }
+  if(!financeData.budgetCategories.includes('Other \u2013 Not Budgeted')){
+    financeData.budgetCategories.push('Other \u2013 Not Budgeted');
+  }
+  financeData.categoryStarts = financeData.categoryStarts || {};
+  financeData.budgets = (financeData.budgets || []).map(b=>{
+    if(!b.versions){
+      const start = b.date || new Date().toISOString().slice(0,10);
+      const end = new Date(new Date(start).setFullYear(new Date(start).getFullYear()+100)).toISOString().slice(0,10);
+      b.versions = [{ amount: b.amount || 0, start, end, interval: b.recurring ? 1 : 0, mode: 'within' }];
+    }
+    b.extras = b.extras || [];
+    b.desc = b.desc || '';
+    normalizeVersions(b);
+    return b;
+  });
+  financeData.budgetPeriods = financeData.budgetPeriods || [];
+  financeData.budgetPeriods.forEach(p=>{
+    if(p.label && !p.month){ p.month = p.label; delete p.label; }
+    if(!p.end) p.end = p.start;
+  });
+  financeData.startBalances = financeData.startBalances || {date:'', accounts:{}};
+  financeData.pots = financeData.pots || [];
+  financeData.nextPotId = financeData.nextPotId || 1;
+  financeData.transactions = (financeData.transactions || []).map(tx=>{
+    const d = parseDate(tx.date);
+    tx.date = Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0,10);
+    return tx;
+  });
+  financeData.pots.forEach(p=>{
+    const total=financeData.transactions.filter(t=>t.potId===p.id)
+      .reduce((s,t)=>s+(parseFloat(t.amount)||0),0);
+    if(p.startAmount===undefined){
+      p.startAmount=(parseFloat(p.current)||0)-total;
+    }
+  });
+  applyRulesToAll();
+  assignMonthsAll();
+  await saveFinance();
+  checkDuplicates();
+  updateAccountList();
+  renderTransactions();
+  renderBudgets();
+  renderRules();
+  renderCodeSettings();
+  renderUploadSettings();
+  renderPeriods();
+  renderStartBalances();
+  populateOverviewMonths();
+  populateBalanceMonths();
+  renderOverview();
+  renderBalance();
+  renderPots();
+  renderSettingsSections();
+}
+
+function updateAccountList(){
+  const sel = document.getElementById('account-name');
+  if(sel){
+    sel.innerHTML = '';
+    financeData.accounts.forEach(a=>{
+      const o=document.createElement('option');
+      o.value=a; o.textContent=a; sel.appendChild(o);
+    });
+  }
+  const ul = document.getElementById('accounts-display');
+  if(ul){
+    ul.innerHTML='';
+    financeData.accounts.forEach(a=>{
+      const li=document.createElement('li');
+      li.textContent=a;
+      const del=document.createElement('button');
+      del.textContent='x';
+      del.style.marginLeft='0.5rem';
+      del.addEventListener('click',()=>{
+        financeData.accounts=financeData.accounts.filter(ac=>ac!==a);
+        updateAccountList();
+        saveFinance();
+      });
+      li.appendChild(del);
+      ul.appendChild(li);
+    });
+  }
+  const filterSel = document.getElementById('filter-account');
+  if(filterSel){
+    filterSel.innerHTML = '<option value="">All accounts</option>';
+    financeData.accounts.forEach(a=>{ const opt=document.createElement('option'); opt.value=a; opt.textContent=a; filterSel.appendChild(opt); });
+  }
+  const potSel = document.getElementById('pot-account');
+  if(potSel){
+    potSel.innerHTML = '<option value="">No account</option>';
+    financeData.accounts.forEach(a=>{ const opt=document.createElement('option'); opt.value=a; opt.textContent=a; potSel.appendChild(opt); });
+  }
+  const viewPotSel = document.getElementById('view-pot-account');
+  if(viewPotSel){
+    viewPotSel.innerHTML = '<option value="">No account</option>';
+    financeData.accounts.forEach(a=>{ const opt=document.createElement('option'); opt.value=a; opt.textContent=a; viewPotSel.appendChild(opt); });
+  }
+  const ruleAccountSel = document.getElementById('rule-account');
+  if(ruleAccountSel){
+    ruleAccountSel.innerHTML = '<option value="">Any account</option>';
+    financeData.accounts.forEach(a=>{ const opt=document.createElement('option'); opt.value=a; opt.textContent=a; ruleAccountSel.appendChild(opt); });
+  }
+}
+
+function parseDate(val){
+  if(val === undefined || val === null || val === '') return new Date('');
+  if(val instanceof Date) return val;
+  if(typeof val === 'number'){
+    // Excel stores dates as days since 1899-12-30
+    return new Date(Math.round((val - 25569) * 86400 * 1000));
+  }
+  if(typeof val === 'string'){
+    const s = val.trim();
+    const parts = s.split(/[\/\-]/);
+    if(parts.length >= 3 && parts[0].length <= 2 && parts[1].length <= 2){
+      let [d,m,y] = parts;
+      y = y.split(' ')[0];
+      if(y.length === 2) y = '20'+y;
+      return new Date(parseInt(y,10), parseInt(m,10)-1, parseInt(d,10));
+    }
+    const parsed = Date.parse(s);
+    if(!Number.isNaN(parsed)) return new Date(parsed);
+  }
+  return new Date(val);
+}
+
+function getPotName(tx){
+  const p = financeData.pots.find(p=>p.id===tx.potId);
+  return (p ? p.name : '').toLowerCase();
+}
+
+function updateSortIndicators(){
+  document.querySelectorAll('#tx-table thead .sort-btn').forEach(b=>{
+    if(b.dataset.field === txSortField){
+      b.textContent = txSortDir === 1 ? '▲' : '▼';
+    } else {
+      b.textContent = '↕';
+    }
+  });
+}
+
+function getMonth(dateStr){
+  const d = parseDate(dateStr);
+  if(Number.isNaN(d.getTime())) return '';
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const y = d.getFullYear();
+  return `${m} ${y}`;
+}
+
+function formatMonth(month){
+  if(!month) return '';
+  const [m,y] = month.split(' ');
+  const d = new Date(parseInt(y,10), parseInt(m,10)-1, 1);
+  return d.toLocaleString('default', { month: 'long' }) + ' ' + String(d.getFullYear()).slice(-2);
+}
+
+function toggle(id){
+  const el=document.getElementById(id);
+  if(el) el.classList.toggle('hidden');
+}
+
+function assignMonth(tx){
+  if(!tx.date) { tx.month=''; return; }
+  if(financeData.budgetPeriods && financeData.budgetPeriods.length){
+    const d = parseDate(tx.date);
+    const match = financeData.budgetPeriods.find(p=>d >= parseDate(p.start) && d <= parseDate(p.end));
+    tx.month = match ? match.month : '';
+  } else {
+    tx.month = '';
+  }
+}
+
+function assignMonthsAll(){
+  financeData.transactions.forEach(t=>assignMonth(t));
+}
+
+function normalizeVersions(sub){
+  if(!sub.versions) return;
+  sub.versions.sort((a,b)=>parseDate(a.start)-parseDate(b.start));
+  for(let i=1;i<sub.versions.length;i++){
+    const prev=sub.versions[i-1];
+    const curr=sub.versions[i];
+    if(parseDate(curr.start)<=parseDate(prev.end)){
+      prev.end=new Date(parseDate(curr.start).getTime()-86400000).toISOString().slice(0,10);
+    }
+  }
+  sub.versions.forEach((v,i)=>v.version=i+1);
+}
+
+function applyRules(tx){
+  const matches = [];
+  financeData.rules.forEach(r=>{
+    if(r.match && (!tx.description || !tx.description.toLowerCase().includes(r.match.toLowerCase()))) return;
+    if(r.account && tx.accountName!==r.account) return;
+    if(r.amount!=null && parseFloat(tx.amount)!==r.amount) return;
+    matches.push(r);
+  });
+  if(matches.length===1){
+    const rule = matches[0];
+    tx.type = rule.type;
+    tx.subType = rule.subType || '';
+    if(rule.potId!=null) tx.potId = rule.potId;
+    tx.autofill = true;
+    tx.confirmed = false;
+    delete tx.multipleRules;
+  } else if(matches.length>1){
+    tx.multipleRules = matches.map(m=>m.id);
+    tx.autofill = true;
+    tx.confirmed = false;
+  }
+}
+
+function applyRulesToAll(){
+  financeData.transactions.forEach(tx=>{
+    if(!tx.type){
+      applyRules(tx);
+    }
+  });
+}
+
+function checkDuplicates(){
+  const seen = {};
+  financeData.transactions.forEach(tx=>{
+    const key = tx.date+'|'+tx.description+'|'+tx.amount+'|'+tx.accountName;
+    if(seen[key]){
+      tx.duplicate = true;
+      seen[key].duplicate = true;
+    } else {
+      seen[key] = tx;
+      if(!tx.hasOwnProperty('duplicate')) tx.duplicate = false;
+    }
+  });
+}
+
+function applyBulkChange(tx, updater, alwaysRender){
+  const selected = Array.from(document.querySelectorAll('#tx-table tbody .tx-select:checked'));
+  const isSelected = selected.some(cb => parseInt(cb.dataset.id) === tx.id);
+  let multi = false;
+  if(isSelected && selected.length > 1){
+    if(confirm('Apply this change to all selected transactions?')){
+      const ids = selected.map(cb=>parseInt(cb.dataset.id));
+      financeData.transactions.forEach(t=>{
+        if(ids.includes(t.id)) updater(t);
+      });
+      multi = true;
+    } else {
+      updater(tx);
+    }
+  } else {
+    updater(tx);
+  }
+  saveFinance();
+  if(alwaysRender || multi) renderTransactions();
+}
+
+function renderTransactions(){
+  const tbody = document.querySelector("#tx-table tbody");
+  tbody.innerHTML = "";
+  const selAll=document.getElementById('select-all');
+  if(selAll) selAll.checked=false;
+  const uncoded = document.getElementById("filter-uncoded").checked;
+  const search = document.getElementById('search-text').value.toLowerCase();
+  const showFile = document.getElementById('toggle-file').checked;
+  document.querySelectorAll('#tx-table thead .file-col').forEach(th=>th.style.display=showFile?'':'none');
+  const fAcc = document.getElementById('filter-account').value;
+  const fType = document.getElementById('filter-type').value;
+  const fSub = document.getElementById('filter-subtype').value;
+  const fFrom = document.getElementById('filter-date-from').value;
+  const fTo = document.getElementById('filter-date-to').value;
+  const fMin = parseFloat(document.getElementById('filter-amount-min').value);
+  const fMax = parseFloat(document.getElementById('filter-amount-max').value);
+  const txs = [...financeData.transactions];
+  if(txSortField){
+    txs.sort((a,b)=>{
+      let valA, valB;
+      switch(txSortField){
+        case 'date': valA=parseDate(a.date); valB=parseDate(b.date); break;
+        case 'description': valA=(a.description||'').toLowerCase(); valB=(b.description||'').toLowerCase(); break;
+        case 'amount': valA=parseFloat(a.amount)||0; valB=parseFloat(b.amount)||0; break;
+        case 'accountName': valA=(a.accountName||'').toLowerCase(); valB=(b.accountName||'').toLowerCase(); break;
+        case 'sourceFile': valA=(a.sourceFile||'').toLowerCase(); valB=(b.sourceFile||'').toLowerCase(); break;
+        case 'uploadedAt': valA=parseDate(a.uploadedAt?a.uploadedAt.split('T')[0]:''); valB=parseDate(b.uploadedAt?b.uploadedAt.split('T')[0]:''); break;
+        case 'type': valA=(a.type||'').toLowerCase(); valB=(b.type||'').toLowerCase(); break;
+        case 'subType': valA=(a.subType||'').toLowerCase(); valB=(b.subType||'').toLowerCase(); break;
+        case 'pot': valA=getPotName(a); valB=getPotName(b); break;
+        case 'confirmed': valA=a.confirmed?1:0; valB=b.confirmed?1:0; break;
+        case 'transfer': valA=a.transfer?1:0; valB=b.transfer?1:0; break;
+        case 'notes': valA=(a.notes||'').toLowerCase(); valB=(b.notes||'').toLowerCase(); break;
+        case 'month': valA=(a.month||'').toLowerCase(); valB=(b.month||'').toLowerCase(); break;
+        default: valA=''; valB='';
+      }
+      if(valA < valB) return -1*txSortDir;
+      if(valA > valB) return 1*txSortDir;
+      return 0;
+    });
+  }
+  txs.forEach(tx=>{
+    if(uncoded && tx.type) return;
+    if(fAcc && tx.accountName !== fAcc) return;
+    if(fType === '__blank'){ if(tx.type) return; }
+    else if(fType && tx.type !== fType) return;
+    if(fSub === '__blank'){ if(tx.subType) return; }
+    else if(fSub && tx.subType !== fSub) return;
+    if(search){
+      let text = (tx.description||'').toLowerCase();
+      if(showFile){
+        text += ' ' + (tx.sourceFile||'').toLowerCase() + ' ' + (tx.uploadedAt||'').toLowerCase();
+      }
+      if(!text.includes(search)) return;
+    }
+    if(fFrom && parseDate(tx.date) < parseDate(fFrom)) return;
+    if(fTo && parseDate(tx.date) > parseDate(fTo)) return;
+    if(!Number.isNaN(fMin) && parseFloat(tx.amount) < fMin) return;
+    if(!Number.isNaN(fMax) && parseFloat(tx.amount) > fMax) return;
+    const tr = document.createElement("tr");
+    const fileCells = showFile ?
+      `<td class="file-col">${tx.sourceFile||''}</td><td class="file-col">${tx.uploadedAt?tx.uploadedAt.split('T')[0]:''}</td>` :
+      `<td class="file-col" style="display:none;">${tx.sourceFile||''}</td><td class="file-col" style="display:none;">${tx.uploadedAt?tx.uploadedAt.split('T')[0]:''}</td>`;
+    tr.innerHTML = `<td><input type="checkbox" class="tx-select" data-id="${tx.id}"></td>`+
+      `<td>${tx.date}</td><td>${tx.description}</td><td>${tx.amount}</td><td>${tx.accountName}</td>` + fileCells;
+    const cb = tr.querySelector('.tx-select');
+    cb.addEventListener('click', e=>{
+      if(e.shiftKey && lastTxCheckbox){
+        const boxes = Array.from(document.querySelectorAll('#tx-table tbody .tx-select'));
+        const start = boxes.indexOf(lastTxCheckbox);
+        const end = boxes.indexOf(cb);
+        const [min,max] = start < end ? [start,end] : [end,start];
+        const check = cb.checked;
+        for(let i=min;i<=max;i++){ boxes[i].checked = check; }
+      }
+      lastTxCheckbox = cb;
+    });
+    if(tx.duplicate) tr.style.background = "#fdd";
+    if(tx.autofill && !tx.confirmed) tr.style.background = "#ffffcc";
+    if(tx.multipleRules && tx.multipleRules.length>1) tr.style.background = "#fcc";
+    let typeSel;
+    if(isMobile){
+      typeSel = document.createElement('select');
+      const blank = document.createElement('option'); blank.value=''; blank.textContent='';
+      typeSel.appendChild(blank);
+      financeData.budgetCategories.forEach(cat=>{ const o=document.createElement('option'); o.value=cat; o.textContent=cat; typeSel.appendChild(o); });
+    } else {
+      typeSel = document.createElement('input');
+      typeSel.setAttribute('list','type-list');
+    }
+    typeSel.value = tx.type || "";
+    let subTypeInput;
+    let stList;
+    if(isMobile){
+      subTypeInput = document.createElement('select');
+    } else {
+      subTypeInput = document.createElement('input');
+      stList = document.createElement('datalist');
+      const stId = 'st-list-'+tx.id; stList.id = stId; subTypeInput.setAttribute('list', stId);
+    }
+    subTypeInput.value = tx.subType || '';
+    function populateST(){
+      const subs = financeData.budgets.filter(b=>b.type===typeSel.value);
+      if(isMobile){
+        const curr = subTypeInput.value;
+        subTypeInput.innerHTML='';
+        const blank=document.createElement('option'); blank.value=''; blank.textContent='';
+        subTypeInput.appendChild(blank);
+        subs.forEach(s=>{ const o=document.createElement('option'); o.value=s.name; o.textContent=s.name; subTypeInput.appendChild(o); });
+        subTypeInput.value = curr;
+      } else {
+        stList.innerHTML='';
+        subs.forEach(s=>{ const o=document.createElement('option'); o.value=s.name; stList.appendChild(o); });
+      }
+    }
+    populateST();
+    typeSel.addEventListener('change', ()=>{ applyBulkChange(tx, t=>{ t.type = typeSel.value; t.confirmed = true; t.autofill=false; }, true); populateST(); });
+    subTypeInput.addEventListener('change', ()=>{
+      applyBulkChange(tx, t=>{
+        t.subType = subTypeInput.value;
+        t.autofill = false;
+        if(subTypeInput.value){
+          const b = financeData.budgets.find(b=>b.name===subTypeInput.value && budgetAppliesToMonth(b, t.month));
+          if(b){ t.type = b.type; t.confirmed = true; }
+        }
+      }, true);
+    });
+    const saveSubBtn = document.createElement('button');
+    saveSubBtn.textContent = '+';
+    saveSubBtn.type = 'button';
+    saveSubBtn.addEventListener('click', ()=>{
+      const type = typeSel.value;
+      let name = subTypeInput.value;
+      if(isMobile && !name){ name = prompt('New sub type name?') || ''; }
+      if(type && name && !financeData.budgets.some(b=>b.type===type && b.name===name)){
+        const todayStr=new Date().toISOString().slice(0,10);
+        const far=new Date(new Date(todayStr).setFullYear(new Date(todayStr).getFullYear()+100)).toISOString().slice(0,10);
+        financeData.budgets.push({id:financeData.nextBudgetId++, type, name, archived:false, versions:[{amount:0,start:todayStr,end:far,interval:1,mode:'within'}], extras:[], desc:''});
+        populateST();
+        saveFinance();
+        renderBudgets();
+        renderOverview();
+        renderSettingsSections();
+      }
+    });
+    const confirmBox = document.createElement("input");
+    confirmBox.type = "checkbox";
+    confirmBox.checked = !!tx.confirmed;
+    confirmBox.addEventListener("change", ()=>{ applyBulkChange(tx, t=>{ t.confirmed = confirmBox.checked; }, false); });
+    const transferBox = document.createElement("input");
+    transferBox.type = "checkbox";
+    transferBox.checked = !!tx.transfer;
+    transferBox.addEventListener("change", ()=>{ applyBulkChange(tx, t=>{ t.transfer = transferBox.checked; }, false); });
+    const notes = document.createElement("input");
+    notes.value = tx.notes || "";
+    notes.addEventListener("change", ()=>{ applyBulkChange(tx, t=>{ t.notes = notes.value; }, false); });
+    const tdType = document.createElement("td"); tdType.appendChild(typeSel);
+    const tdSub = document.createElement('td');
+    tdSub.appendChild(subTypeInput);
+    if(!isMobile) tdSub.appendChild(stList);
+    tdSub.appendChild(saveSubBtn);
+    const potSel = document.createElement('select');
+    const blankPot = document.createElement('option'); blankPot.value=''; blankPot.textContent='';
+    potSel.appendChild(blankPot);
+    financeData.pots.forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent=p.name; potSel.appendChild(o); });
+    potSel.value = tx.potId || '';
+    potSel.addEventListener('change', ()=>{
+      const newId = potSel.value ? parseInt(potSel.value) : null;
+      applyBulkChange(tx, t=>{ t.potId = newId; }, true);
+      renderPots();
+    });
+    const tdPot = document.createElement('td'); tdPot.appendChild(potSel);
+    const tdConf = document.createElement("td"); tdConf.appendChild(confirmBox);
+    const tdTrans = document.createElement("td"); tdTrans.appendChild(transferBox);
+    const tdNotes = document.createElement("td"); tdNotes.appendChild(notes);
+    const tdMonth = document.createElement("td"); tdMonth.textContent = tx.month || '';
+    tr.appendChild(tdType); tr.appendChild(tdSub); tr.appendChild(tdPot); tr.appendChild(tdConf); tr.appendChild(tdTrans); tr.appendChild(tdNotes); tr.appendChild(tdMonth);
+    tbody.appendChild(tr);
+  });
+  updateSortIndicators();
+  populateBalanceMonths();
+  renderBalance();
+}
+
+function renderBudgets(){
+  console.log('renderBudgets called');
+  console.log('financeData.budgets:', financeData.budgets);
+  const tbody = document.querySelector('#budget-table tbody');
+  if(!tbody) {
+    console.log('ERROR: budget-table tbody not found');
+    return;
+  }
+  tbody.innerHTML = '';
+  
+  if (!financeData.budgets) {
+    console.log('ERROR: financeData.budgets is undefined or null');
+    return;
+  }
+  
+  console.log('About to render budgets, budgets count:', financeData.budgets.length);
+  const groups = {};
+  financeData.budgets.forEach(b=>{
+    groups[b.type] = groups[b.type] || { amount:0, items:[] };
+    const v=currentBudgetVersion(b);
+    groups[b.type].amount += v?parseFloat(v.amount||0):0;
+    groups[b.type].items.push(b);
+  });
+  financeData.budgetCategories.forEach(cat=>{
+    const g = groups[cat] || {amount:0, items:[]};
+    const tr = document.createElement('tr');
+    const delCatBtn = document.createElement('button');
+    delCatBtn.textContent = 'Delete';
+    if(!cat.startsWith('Other')){
+      delCatBtn.addEventListener('click', ()=>{
+        if(confirm('Delete category and all its sub budgets? This will remove related types from transactions.')){
+          financeData.budgets = financeData.budgets.filter(b=>b.type!==cat);
+          financeData.transactions.forEach(t=>{ if(t.type===cat){ t.type=''; t.subType=''; } });
+          financeData.rules = financeData.rules.filter(r=>r.type!==cat);
+          financeData.budgetCategories = financeData.budgetCategories.filter(c=>c!==cat);
+          saveFinance();
+          renderBudgets();
+          renderOverview();
+          renderTransactions();
+          renderRules();
+          updateTypeOptions();
+          renderSettingsSections();
+        }
+      });
+    } else {
+      delCatBtn.disabled = true;
+    }
+    tr.appendChild(document.createElement('td')).textContent = cat;
+    tr.appendChild(document.createElement('td')).textContent = '';
+    tr.appendChild(document.createElement('td')).textContent = g.amount;
+    tr.appendChild(document.createElement('td'));
+    tr.appendChild(document.createElement('td'));
+    const actionTd = document.createElement('td'); actionTd.appendChild(delCatBtn); tr.appendChild(actionTd);
+    tr.appendChild(document.createElement('td'));
+    tbody.appendChild(tr);
+    g.items.forEach(sub=>{
+      const tr2 = document.createElement('tr');
+      const v=currentBudgetVersion(sub) || {amount:'',interval:1,mode:'within',start:'',end:''};
+      tr2.innerHTML = `<td style="padding-left:20px;">${sub.name}</td><td>${sub.desc||''}</td><td>${v.amount}</td><td>${v.interval>1?`Every ${v.interval} (${v.mode})`:'Monthly'}</td><td>${v.start}</td>`;
+      const editSubBtn=document.createElement('button');
+      editSubBtn.textContent='Edit';
+      editSubBtn.addEventListener('click',()=>openBudgetModal(sub));
+      const delSubBtn = document.createElement('button');
+      delSubBtn.textContent = 'Delete';
+      delSubBtn.addEventListener('click',()=>{
+        if(confirm('Delete this sub budget? This will remove it from any transactions.')){
+          financeData.budgets = financeData.budgets.filter(b=>!(b.type===sub.type && b.name===sub.name));
+          financeData.transactions.forEach(t=>{ if(t.type===sub.type && t.subType===sub.name){ t.type=''; t.subType=''; } });
+          financeData.rules = financeData.rules.filter(r=>!(r.type===sub.type && r.subType===sub.name));
+          saveFinance();
+          renderBudgets();
+          renderOverview();
+          renderTransactions();
+          renderRules();
+          renderSettingsSections();
+        }
+      });
+      const actionTd2 = document.createElement('td'); actionTd2.appendChild(editSubBtn); actionTd2.appendChild(delSubBtn); tr2.appendChild(actionTd2);
+      const arch = document.createElement('input');
+      arch.type = 'checkbox';
+      arch.checked = !!sub.archived;
+      arch.addEventListener('change',()=>{ sub.archived = arch.checked; saveFinance(); renderOverview(); });
+      const tdArch = document.createElement('td'); tdArch.appendChild(arch); tr2.appendChild(tdArch);
+      tbody.appendChild(tr2);
+    });
+  });
+
+  const uncat = groups[''] || {amount:0, items:[]};
+  if(uncat.items.length){
+    const tr=document.createElement('tr');
+    tr.appendChild(document.createElement('td')).textContent='Uncategorised';
+    tr.appendChild(document.createElement('td')).textContent='';
+    tr.appendChild(document.createElement('td')).textContent=uncat.amount;
+    tr.appendChild(document.createElement('td'));
+    tr.appendChild(document.createElement('td'));
+    tr.appendChild(document.createElement('td'));
+    tr.appendChild(document.createElement('td'));
+    tbody.appendChild(tr);
+    uncat.items.forEach(sub=>{
+      const tr2=document.createElement('tr');
+      const v=currentBudgetVersion(sub)||{amount:'',interval:1,mode:'within',start:'',end:''};
+      tr2.innerHTML = `<td style="padding-left:20px;">${sub.name}</td><td>${sub.desc||''}</td><td>${v.amount}</td><td>${v.interval>1?`Every ${v.interval} (${v.mode})`:'Monthly'}</td><td>${v.start}</td>`;
+      const editSubBtn=document.createElement('button');
+      editSubBtn.textContent='Edit';
+      editSubBtn.addEventListener('click',()=>openBudgetModal(sub));
+      const delSubBtn=document.createElement('button');
+      delSubBtn.textContent='Delete';
+      delSubBtn.addEventListener('click',()=>{
+        if(confirm('Delete this sub budget? This will remove it from any transactions.')){
+          financeData.budgets = financeData.budgets.filter(b=>!(b.type===sub.type && b.name===sub.name));
+          financeData.transactions.forEach(t=>{ if(t.type===sub.type && t.subType===sub.name){ t.type=''; t.subType=''; } });
+          financeData.rules = financeData.rules.filter(r=>!(r.type===sub.type && r.subType===sub.name));
+          saveFinance();
+          renderBudgets();
+          renderOverview();
+          renderTransactions();
+          renderRules();
+          renderSettingsSections();
+        }
+      });
+      const actionTd2=document.createElement('td'); actionTd2.appendChild(editSubBtn); actionTd2.appendChild(delSubBtn); tr2.appendChild(actionTd2);
+      const arch=document.createElement('input');
+      arch.type='checkbox';
+      arch.checked=!!sub.archived;
+      arch.addEventListener('change',()=>{ sub.archived=arch.checked; saveFinance(); renderOverview(); });
+      const tdArch=document.createElement('td'); tdArch.appendChild(arch); tr2.appendChild(tdArch);
+      tbody.appendChild(tr2);
+    });
+  }
+  updateTypeOptions();
+  renderBalance();
+}
+
+function updateTypeOptions(){
+  const list = document.getElementById('type-list');
+  if(list) list.innerHTML = '';
+  const filter = document.getElementById('filter-type');
+  if(filter) filter.innerHTML = '<option value="">All types</option><option value="__blank">Blank</option>';
+  financeData.budgetCategories.forEach(t=>{
+    if(list){ const opt=document.createElement('option'); opt.value=t; list.appendChild(opt); }
+    if(filter){ const opt=document.createElement('option'); opt.value=t; opt.textContent=t; filter.appendChild(opt); }
+  });
+  const ruleType = document.getElementById('rule-type');
+  if(ruleType){
+    ruleType.innerHTML = '<option value="">Select type</option>';
+    financeData.budgetCategories.forEach(t=>{
+      const o=document.createElement('option'); o.value=t; o.textContent=t; ruleType.appendChild(o);
+    });
+  }
+  updateSubtypeFilterOptions();
+}
+
+function updateSubtypeFilterOptions(){
+  const filter = document.getElementById('filter-subtype');
+  if(!filter) return;
+  const curr = filter.value;
+  filter.innerHTML = '<option value="">All sub types</option><option value="__blank">Blank</option>';
+  financeData.budgets.forEach(b=>{
+    const o=document.createElement('option'); o.value=b.name; o.textContent=b.name; filter.appendChild(o);
+  });
+  filter.value = curr;
+}
+
+function updateRulePotOptions(){
+  const sel = document.getElementById('rule-pot');
+  if(sel){
+    sel.innerHTML = '<option value="">Select pot</option>';
+    financeData.pots.forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent=p.name; sel.appendChild(o); });
+  }
+}
+
+function currentBudgetVersion(sub){
+  if(!sub.versions || !sub.versions.length) return null;
+  const today=new Date();
+  const sorted=sub.versions.slice().sort((a,b)=>parseDate(a.start)-parseDate(b.start));
+  let curr=sorted.find(v=>today>=parseDate(v.start)&&today<=parseDate(v.end));
+  if(!curr) curr=sorted[sorted.length-1];
+  return curr;
+}
+
+function monthToDate(month){
+  const [m,y]=month.split(' ');
+  return new Date(parseInt(y,10),parseInt(m,10)-1,1);
+}
+
+function monthsBetween(startDate,endDate){
+  const res=[];
+  const d=new Date(startDate);
+  const end=new Date(endDate);
+  while(d<=end){
+    res.push(`${String(d.getMonth()+1).padStart(2,'0')} ${d.getFullYear()}`);
+    d.setMonth(d.getMonth()+1);
+  }
+  return res;
+}
+
+function baseAmountForMonth(sub, month){
+  if(!sub.versions || !sub.versions.length) return 0;
+  const mStart=monthToDate(month);
+  const mEnd=new Date(mStart.getFullYear(), mStart.getMonth()+1, 0);
+  let amt=0;
+  sub.versions.forEach(v=>{
+    const s=parseDate(v.start);
+    const e=parseDate(v.end);
+    if(e>=mStart && s<=mEnd){
+      const interval=parseInt(v.interval||1,10);
+      const mode=v.mode||'within';
+      const diffMonths=(mStart.getFullYear()-s.getFullYear())*12 + (mStart.getMonth()-s.getMonth());
+      if(interval<=1){
+        amt+=parseFloat(v.amount||0);
+      } else if(mode==='within'){
+        if(diffMonths%interval===0) amt+=parseFloat(v.amount||0);
+      } else {
+        amt+=parseFloat(v.amount||0)/interval;
+      }
+    }
+  });
+  return amt;
+}
+
+function budgetAppliesToMonth(sub, month){
+  if(!sub.versions || !sub.versions.length) return false;
+  const mStart=monthToDate(month);
+  const mEnd=new Date(mStart.getFullYear(), mStart.getMonth()+1, 0);
+  return sub.versions.some(v=>{
+    const s=parseDate(v.start);
+    const e=parseDate(v.end);
+    if(e<mStart || s>mEnd) return false;
+    const interval=parseInt(v.interval||1,10);
+    const diffMonths=(mStart.getFullYear()-s.getFullYear())*12 + (mStart.getMonth()-s.getMonth());
+    if(interval<=1) return true;
+    return (v.mode||'within')==='within' ? diffMonths%interval===0 : true;
+  });
+}
+
+function extraForMonth(sub, month){
+  return (sub.extras||[]).filter(e=>e.month===month).reduce((s,e)=>s+parseFloat(e.amount||0),0);
+}
+
+function amountForMonth(sub, month){
+  return baseAmountForMonth(sub, month) + extraForMonth(sub, month);
+}
+
+function openBudgetModal(sub, editIndex=-1, isNew=false){
+  sub.versions = sub.versions || [];
+  normalizeVersions(sub);
+  const modal=document.getElementById('budget-modal');
+  if(!modal) return;
+  const monthStart=new Date();
+  monthStart.setDate(1);
+  const todayStr=monthStart.toISOString().slice(0,10);
+  const farDate=new Date(monthStart);
+  farDate.setFullYear(farDate.getFullYear()+100);
+  const far=farDate.toISOString().slice(0,10);
+  const curr=sub.versions.length?currentBudgetVersion(sub):null;
+  const defaultVer={amount:0,start:todayStr,end:far,interval:1,mode:'within'};
+  const v=editIndex>=0 && sub.versions[editIndex]? sub.versions[editIndex] : (curr || defaultVer);
+  const allStart=sub.versions.length? sub.versions.reduce((m,x)=>parseDate(x.start)<m?parseDate(x.start):m,parseDate(sub.versions[0].start)) : parseDate(v.start);
+  const allEnd=sub.versions.length? sub.versions.reduce((m,x)=>parseDate(x.end)>m?parseDate(x.end):m,parseDate(sub.versions[0].end)) : parseDate(v.end);
+  const monthOpts=monthsBetween(allStart,allEnd);
+  modal.innerHTML=`<form id="budget-edit-form">
+    <label>Category <select id="edit-type"></select></label>
+    <label>Name <input type="text" id="edit-name" value="${sub.name||''}" ${isNew?'':'disabled'}></label>
+    <label>Description <textarea id="edit-desc">${sub.desc||''}</textarea></label>
+    <label>Amount <input type="number" id="edit-amount" value="${v.amount}"></label>
+    <label>Start <input type="date" id="edit-start" value="${v.start}"></label>
+    <label>End <input type="date" id="edit-end" value="${v.end}"></label>
+    <label>Interval (months) <input type="number" id="edit-interval" value="${v.interval||1}"></label>
+    <label>Mode <select id="edit-mode"><option value="within">Within Month</option><option value="throughout">Throughout</option></select></label>
+    <button type="submit">Save</button>
+    <button type="button" id="close-budget-modal">Close</button>
+    ${(editIndex>=0 && !isNew) ? '<button type="button" id="cancel-edit">Cancel</button>' : ''}
+  </form>
+  <h4>History</h4>
+  <table><thead><tr><th>Ver</th><th>Start</th><th>End</th><th>Amount</th><th>Interval</th><th>Mode</th><th></th></tr></thead><tbody></tbody></table>
+  <h4>Extras</h4>
+  <form id="extra-form">
+    <input type="number" id="extra-amount" placeholder="Amount">
+    <select id="extra-months" multiple size="5"></select>
+    <button type="submit">Add Extra</button>
+  </form>
+  <table id="extra-table"><thead><tr><th>Month</th><th>Amount</th><th></th></tr></thead><tbody></tbody></table>`;
+  const typeSel=modal.querySelector('#edit-type');
+  financeData.budgetCategories.forEach(cat=>{ const o=document.createElement('option'); o.value=cat; o.textContent=cat; typeSel.appendChild(o); });
+  typeSel.value=sub.type||'';
+  const modeSel=modal.querySelector('#edit-mode'); modeSel.value=v.mode||'within';
+  if(editIndex===-1){
+    if(v.start===todayStr) modal.querySelector('#edit-start').insertAdjacentHTML('afterend','<small>(default today)</small>');
+    if(v.end===far) modal.querySelector('#edit-end').insertAdjacentHTML('afterend','<small>(default 100y)</small>');
+  }
+  const histTbody=modal.querySelector('table tbody');
+  (sub.versions||[]).slice().sort((a,b)=>parseDate(b.start)-parseDate(a.start)).forEach(ver=>{
+    const idx=sub.versions.indexOf(ver);
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${ver.version||idx+1}</td><td>${ver.start}</td><td>${ver.end}</td><td>${ver.amount}</td><td>${ver.interval||1}</td><td>${ver.mode||'within'}</td><td><button class="edit-ver" data-idx="${idx}">Edit</button><button class="del-ver" data-idx="${idx}">Delete</button></td>`;
+    if(ver===curr) tr.style.background='lightgreen';
+    histTbody.appendChild(tr);
+  });
+  histTbody.querySelectorAll('.edit-ver').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const idx=parseInt(btn.dataset.idx);
+      openBudgetModal(sub, idx);
+    });
+  });
+  histTbody.querySelectorAll('.del-ver').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const idx=parseInt(btn.dataset.idx);
+      if(confirm('Delete this version?')){
+        sub.versions.splice(idx,1);
+        normalizeVersions(sub);
+        saveFinance();
+        renderBudgets();
+        renderOverview();
+        openBudgetModal(sub);
+      }
+    });
+  });
+  const extraSel=modal.querySelector('#extra-months');
+  monthOpts.forEach(m=>{ const o=document.createElement('option'); o.value=m; o.textContent=m; extraSel.appendChild(o); });
+  const extraTbody=modal.querySelector('#extra-table tbody');
+  (sub.extras||[]).forEach((ex,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${ex.month}</td><td>${ex.amount}</td><td><button class="edit-extra" data-idx="${i}">Edit</button><button class="del-extra" data-idx="${i}">Delete</button></td>`;
+    extraTbody.appendChild(tr);
+  });
+  extraTbody.querySelectorAll('.del-extra').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const idx=parseInt(btn.dataset.idx);
+      sub.extras.splice(idx,1);
+      saveFinance();
+      renderOverview();
+      openBudgetModal(sub);
+    });
+  });
+  extraTbody.querySelectorAll('.edit-extra').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const idx=parseInt(btn.dataset.idx);
+      const ex=sub.extras[idx];
+      const amt=parseFloat(prompt('Amount', ex.amount));
+      if(isNaN(amt)) return;
+      const month=prompt('Month (MM YYYY)', ex.month);
+      if(!monthOpts.includes(month)) { alert('Invalid month'); return; }
+      ex.amount=amt; ex.month=month;
+      saveFinance();
+      renderOverview();
+      openBudgetModal(sub);
+    });
+  });
+  modal.querySelector('#extra-form').addEventListener('submit', e=>{
+    e.preventDefault();
+    const amt=parseFloat(modal.querySelector('#extra-amount').value);
+    const months=Array.from(extraSel.selectedOptions).map(o=>o.value);
+    if(isNaN(amt) || !months.length) return;
+    months.forEach(m=>sub.extras.push({month:m,amount:amt}));
+    modal.querySelector('#extra-amount').value='';
+    extraSel.selectedIndex=-1;
+    saveFinance();
+    renderOverview();
+    openBudgetModal(sub);
+  });
+  modal.style.display='block';
+  modal.querySelector('#close-budget-modal').addEventListener('click',()=>{ modal.style.display='none'; });
+  if(editIndex>=0 && !isNew){
+    modal.querySelector('#cancel-edit').addEventListener('click',()=>openBudgetModal(sub));
+  }
+  modal.querySelector('#budget-edit-form').addEventListener('submit',e=>{
+    e.preventDefault();
+    const newType=typeSel.value;
+    const name=modal.querySelector('#edit-name').value.trim();
+    const desc=modal.querySelector('#edit-desc').value.trim();
+    const amount=parseFloat(modal.querySelector('#edit-amount').value);
+    const start=modal.querySelector('#edit-start').value||todayStr;
+    const end=modal.querySelector('#edit-end').value||far;
+    if(parseDate(end)<parseDate(start)){
+      alert('End date must be after start date');
+      return;
+    }
+    const interval=parseInt(modal.querySelector('#edit-interval').value)||1;
+    const mode=modal.querySelector('#edit-mode').value;
+    if(isNew){
+      if(!newType || !name) return;
+      sub.type=newType;
+      sub.name=name;
+      sub.desc=desc;
+      sub.archived=false;
+      sub.versions=[{amount,start,end,interval,mode}];
+      sub.extras=[];
+      financeData.budgets.push(sub);
+      financeData.nextBudgetId++;
+    } else {
+      const same=v.amount==amount && v.start==start && v.end==end && v.interval==interval && v.mode==mode;
+      if(editIndex>=0){
+        sub.versions[editIndex]={amount,start,end,interval,mode};
+      } else if(!same){
+        sub.versions.push({amount,start,end,interval,mode});
+      }
+      sub.desc=desc;
+      if(newType!==sub.type){
+        financeData.transactions.forEach(t=>{ if(t.type===sub.type && t.subType===sub.name){ t.type=newType; } });
+        financeData.rules.forEach(r=>{ if(r.type===sub.type && r.subType===sub.name){ r.type=newType; } });
+        sub.type=newType;
+      }
+    }
+    normalizeVersions(sub);
+    const currV=currentBudgetVersion(sub);
+    if(currV){
+      sub.amount=currV.amount;
+      sub.date=currV.start;
+    }
+    modal.style.display='none';
+    saveFinance();
+    renderBudgets();
+    renderOverview();
+    renderTransactions();
+    renderRules();
+    renderSettingsSections();
+  });
+}
+
+function renderSettingsSections(){
+  // Only render budget category settings in the budgets tab
+  const budgetContainer = document.getElementById('budget-settings');
+  if(budgetContainer) {
+    budgetContainer.innerHTML = `
+      <h3>Budget Settings</h3>
+      <form class="type-form">
+        <input type="text" class="new-type-name" placeholder="New Category">
+        <input type="date" class="new-type-start">
+        <button type="submit">Add Category</button>
+      </form>
+      <ul class="type-list"></ul>
+      <form class="subtype-form">
+        <select class="subtype-type"></select>
+        <button type="button" class="add-subtype-btn">Add Sub Type</button>
+      </form>
+      <div class="subtype-lists"></div>`;
+    
+    const typeForm = budgetContainer.querySelector('.type-form');
+    typeForm.addEventListener('submit', e=>{
+      e.preventDefault();
+      const name = budgetContainer.querySelector('.new-type-name').value.trim();
+      const start = budgetContainer.querySelector('.new-type-start').value || new Date().toISOString().slice(0,10);
+      if(!name || financeData.budgetCategories.includes(name)) return;
+      financeData.budgetCategories.push(name);
+      financeData.categoryStarts[name]=start;
+      budgetContainer.querySelector('.new-type-name').value='';
+      budgetContainer.querySelector('.new-type-start').value='';
+      saveFinance();
+      updateTypeOptions();
+      renderBudgets();
+      renderOverview();
+      renderSettingsSections();
+    });
+    
+    const subtypeForm = budgetContainer.querySelector('.subtype-form');
+    const typeSelect = budgetContainer.querySelector('.subtype-type');
+    function fillTypes(){
+      typeSelect.innerHTML = '<option value="">Select type</option>';
+      financeData.budgetCategories.forEach(t=>{ const o=document.createElement('option'); o.value=t; o.textContent=t; typeSelect.appendChild(o); });
+    }
+    fillTypes();
+    subtypeForm.querySelector('.add-subtype-btn').addEventListener('click',()=>{
+      const type = typeSelect.value;
+      if(!type) return;
+      const nb={id:financeData.nextBudgetId, type, name:'', archived:false, versions:[], extras:[], desc:''};
+      openBudgetModal(nb, -1, true);
+    });
+
+    const typeList = budgetContainer.querySelector('.type-list');
+    financeData.budgetCategories.forEach(cat=>{
+      const li=document.createElement('li');
+      const start=financeData.categoryStarts[cat]||'';
+      li.textContent=start?`${cat} (${start})`:cat;
+      if(!cat.startsWith('Other')){
+        const del=document.createElement('button');
+        del.textContent='Delete';
+        del.addEventListener('click',()=>{
+          if(confirm('Delete category and all its sub budgets? This will remove related types from transactions.')){
+            financeData.budgets = financeData.budgets.filter(b=>b.type!==cat);
+            financeData.transactions.forEach(t=>{ if(t.type===cat){ t.type=''; t.subType=''; } });
+            financeData.rules = financeData.rules.filter(r=>r.type!==cat);
+            financeData.budgetCategories = financeData.budgetCategories.filter(c=>c!==cat);
+            delete financeData.categoryStarts[cat];
+            saveFinance();
+            renderBudgets();
+            renderOverview();
+            renderTransactions();
+            renderRules();
+            updateTypeOptions();
+            renderSettingsSections();
+          }
+        });
+        li.appendChild(del);
+      }
+      typeList.appendChild(li);
+    });
+
+    const subLists = budgetContainer.querySelector('.subtype-lists');
+    financeData.budgetCategories.forEach(cat=>{
+      const subs = financeData.budgets.filter(b=>b.type===cat);
+      if(!subs.length) return;
+      const div=document.createElement('div');
+      const title=document.createElement('strong'); title.textContent=cat; div.appendChild(title);
+      const ul=document.createElement('ul');
+      subs.forEach(sub=>{
+        const li=document.createElement('li');
+        li.textContent=sub.desc?`${sub.name} - ${sub.desc}`:sub.name;
+        const edit=document.createElement('button'); edit.textContent='Edit';
+        edit.addEventListener('click',()=>openBudgetModal(sub));
+        const del=document.createElement('button'); del.textContent='Delete';
+        del.addEventListener('click',()=>{
+          if(confirm('Delete this sub budget? This will remove it from any transactions.')){
+            financeData.budgets = financeData.budgets.filter(b=>!(b.type===sub.type && b.name===sub.name));
+            financeData.transactions.forEach(t=>{ if(t.type===sub.type && t.subType===sub.name){ t.type=''; t.subType=''; } });
+            financeData.rules = financeData.rules.filter(r=>!(r.type===sub.type && r.subType===sub.name));
+            saveFinance();
+            renderBudgets();
+            renderOverview();
+            renderTransactions();
+            renderRules();
+            renderSettingsSections();
+          }
+        });
+        li.appendChild(edit);
+        li.appendChild(del);
+        ul.appendChild(li);
+      });
+      div.appendChild(ul);
+      subLists.appendChild(div);
+    });
+    
+    const uncats = financeData.budgets.filter(b=>!b.type);
+    if(uncats.length){
+      const div=document.createElement('div');
+      const title=document.createElement('strong'); title.textContent='Uncategorised'; div.appendChild(title);
+      const ul=document.createElement('ul');
+      uncats.forEach(sub=>{
+        const li=document.createElement('li');
+        li.textContent=sub.desc?`${sub.name} - ${sub.desc}`:sub.name;
+        const edit=document.createElement('button'); edit.textContent='Edit';
+        edit.addEventListener('click',()=>openBudgetModal(sub));
+        const del=document.createElement('button'); del.textContent='Delete';
+        del.addEventListener('click',()=>{
+          if(confirm('Delete this sub budget? This will remove it from any transactions.')){
+            financeData.budgets = financeData.budgets.filter(b=>!(b.type===sub.type && b.name===sub.name));
+            financeData.transactions.forEach(t=>{ if(t.type===sub.type && t.subType===sub.name){ t.type=''; t.subType=''; } });
+            financeData.rules = financeData.rules.filter(r=>!(r.type===sub.type && r.subType===sub.name));
+            saveFinance();
+            renderBudgets();
+            renderOverview();
+            renderTransactions();
+            renderRules();
+            renderSettingsSections();
+          }
+        });
+        li.appendChild(edit);
+        li.appendChild(del);
+        ul.appendChild(li);
+      });
+      div.appendChild(ul);
+      subLists.appendChild(div);
+    }
+  }
+}
+
+function renderCodeSettings(){
+  // Only render autofill rules in the code tab
+  const codeContainer = document.getElementById('code-settings');
+  if(codeContainer) {
+    codeContainer.innerHTML = `
+      <h3>Autofill Rules</h3>
+      <p>Create rules to automatically categorize transactions based on description, account, or amount.</p>
+      <form id="rule-form">
+        <div class="rule-inputs">
+          <div>
+            <label>Description Contains:</label>
+            <input type="text" id="rule-desc" placeholder="Text to match in description">
+          </div>
+          <div>
+            <label>Account:</label>
+            <select id="rule-account">
+              <option value="">Any account</option>
+            </select>
+          </div>
+          <div>
+            <label>Amount:</label>
+            <input type="number" id="rule-amount" placeholder="Exact amount" step="0.01">
+          </div>
+          <div>
+            <label>Category:</label>
+            <select id="rule-type"><option value="">Select category</option></select>
+          </div>
+          <div>
+            <label>Sub Category:</label>
+            <input type="text" id="rule-subtype" placeholder="Sub category" list="rule-subtype-list">
+          </div>
+          <div>
+            <label>Pot:</label>
+            <select id="rule-pot"><option value="">Select pot</option></select>
+          </div>
+        </div>
+        <button type="submit">Add Rule</button>
+      </form>
+      <table id="rule-table">
+        <thead><tr><th>Description</th><th>Account</th><th>Amount</th><th>Category</th><th>Sub Category</th><th>Pot</th><th>Action</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <datalist id="rule-subtype-list"></datalist>`;
+    
+    // Set up the rule form event listener
+    const ruleForm = codeContainer.querySelector('#rule-form');
+    ruleForm.addEventListener('submit', e=>{
+      e.preventDefault();
+      const match = document.getElementById('rule-desc').value.trim();
+      const account = document.getElementById('rule-account').value;
+      const amount = document.getElementById('rule-amount').value;
+      const type = document.getElementById('rule-type').value;
+      const subType = document.getElementById('rule-subtype').value.trim();
+      const potId = document.getElementById('rule-pot').value;
+      if(!type) return;
+      
+      const rule = {
+        id: Date.now(),
+        match: match || null,
+        account: account || null,
+        amount: amount ? parseFloat(amount) : null,
+        type,
+        subType: subType || null,
+        potId: potId ? parseInt(potId) : null
+      };
+      
+      financeData.rules.push(rule);
+      saveFinance();
+      renderCodeSettings();
+      renderTransactions();
+    });
+    
+    // Populate the dropdowns
+    updateRuleOptions();
+    renderRules();
+  }
+}
+
+function updateRuleOptions(){
+  const accountSelect = document.getElementById('rule-account');
+  const typeSelect = document.getElementById('rule-type');
+  const potSelect = document.getElementById('rule-pot');
+  
+  if(accountSelect) {
+    accountSelect.innerHTML = '<option value="">Any account</option>';
+    financeData.accounts.forEach(acc=>{
+      const option = document.createElement('option');
+      option.value = acc.name;
+      option.textContent = acc.name;
+      accountSelect.appendChild(option);
+    });
+  }
+  
+  if(typeSelect) {
+    typeSelect.innerHTML = '<option value="">Select category</option>';
+    financeData.budgetCategories.forEach(cat=>{
+      const option = document.createElement('option');
+      option.value = cat;
+      option.textContent = cat;
+      typeSelect.appendChild(option);
+    });
+  }
+  
+  if(potSelect) {
+    potSelect.innerHTML = '<option value="">Select pot</option>';
+    financeData.pots.forEach(pot=>{
+      const option = document.createElement('option');
+      option.value = pot.id;
+      option.textContent = pot.name;
+      potSelect.appendChild(option);
+    });
+  }
+}
+
+function renderUploadSettings(){
+  // Only render upload settings in the settings tab
+  const uploadContainer = document.getElementById('upload-settings');
+  if(uploadContainer) {
+    uploadContainer.innerHTML = `
+      <h3>Upload Settings</h3>
+      <p>Configure file upload and account management settings.</p>
+      <!-- Add upload-specific content here -->`;
+  }
+}
+
+function renderRules(){
+  updateRulePotOptions();
+  const tbody = document.querySelector('#rule-table tbody');
+  if(!tbody) return;
+  tbody.innerHTML='';
+  financeData.rules.forEach(r=>{
+    const tr=document.createElement('tr');
+    const delBtn=document.createElement('button');
+    delBtn.textContent='Delete';
+    delBtn.addEventListener('click',()=>{
+      financeData.rules=financeData.rules.filter(x=>x.id!==r.id);
+      saveFinance();
+      renderRules();
+    });
+    const pot = financeData.pots.find(p=>p.id===r.potId);
+    const potName = pot ? pot.name : '';
+    tr.innerHTML=`<td>${r.match||''}</td><td>${r.account||''}</td><td>${r.amount!=null?r.amount:''}</td><td>${r.type}</td><td>${r.subType||''}</td><td>${potName}</td>`;
+    const td=document.createElement('td'); td.appendChild(delBtn); tr.appendChild(td);
+    tbody.appendChild(tr);
+  });
+  document.getElementById('rule-desc').value='';
+  document.getElementById('rule-account').value='';
+  document.getElementById('rule-amount').value='';
+  document.getElementById('rule-type').value='';
+  document.getElementById('rule-subtype').value='';
+  document.getElementById('rule-pot').value='';
+  const list=document.getElementById('rule-subtype-list');
+  if(list) list.innerHTML='';
+}
+
+async function saveFinance(){
+  recalcPots();
+  checkDuplicates();
+  await fetch('/api/finance-data', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(financeData) });
+}
+
+document.getElementById('upload-form').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const file = document.getElementById('file-input').files[0];
+  if(!file) return;
+  const accountType = document.getElementById('account-type').value;
+  const accountName = document.getElementById('account-name').value.trim();
+  if(accountName && !financeData.accounts.includes(accountName)){
+    financeData.accounts.push(accountName);
+  }
+  parseFile(file, accountType, accountName);
+});
+
+function parseFile(file, accountType, accountName){
+  const reader = new FileReader();
+  const ext = file.name.split('.').pop().toLowerCase();
+  reader.onload = async () => {
+    let rows = [];
+    if(ext === 'csv'){
+      rows = Papa.parse(reader.result, { header:true }).data;
+    } else {
+      const wb = XLSX.read(reader.result, { type:'binary' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      rows = XLSX.utils.sheet_to_json(sheet);
+    }
+    rows.forEach(r=>{
+      let dateRaw='';
+      let description='';
+      let amount='';
+      if(accountType === 'Monzo'){
+        dateRaw = r.Date || r.date;
+        description = r.Description || r.Name || r.name || '';
+        if(r['Money Out']) amount = -parseFloat(r['Money Out']);
+        if(r['Money In']) amount = parseFloat(r['Money In']);
+        if(r.Amount) amount = parseFloat(r.Amount);
+      } else if(accountType === 'TSB') {
+        dateRaw = r['Transaction date'] || r['Transaction Date'] || r.Date || r.date || '';
+        description = r['Transaction description'] || r.Description || '';
+        const debit = parseFloat(r['Debit Amount'] || r['Debit amount'] || r.Debit || r['Debit'] || '');
+        const credit = parseFloat(r['Credit amount'] || r['Credit Amount'] || r.Credit || r['Credit'] || '');
+        if(!Number.isNaN(debit) && debit) amount = -Math.abs(debit);
+        else if(!Number.isNaN(credit) && credit) amount = Math.abs(credit);
+      } else {
+        const keys = Object.keys(r).slice(0,8);
+        keys.forEach(k=>{
+          const lower=k.toLowerCase();
+          if(lower.includes('description')) description = r[k];
+          if(lower === 'date' || lower.startsWith('date ')) dateRaw = r[k];
+          if(lower.includes('amount')) amount = r[k];
+        });
+      }
+      const parsedDate = parseDate(dateRaw);
+      const date = Number.isNaN(parsedDate.getTime()) ? '' : parsedDate.toISOString().slice(0,10);
+      const tx = {
+        id: financeData.nextTransactionId++,
+        date,
+        description,
+        amount: parseFloat(amount || 0),
+        accountType,
+        accountName,
+        month: '',
+        sourceFile: file.name,
+        uploadedAt: new Date().toISOString(),
+        notes: '',
+        transfer: false,
+        potId: null
+      };
+      assignMonth(tx);
+      applyRules(tx);
+      financeData.transactions.push(tx);
+    });
+    checkDuplicates();
+    await saveFinance();
+    updateAccountList();
+    renderStartBalances();
+    renderTransactions();
+    populateOverviewMonths();
+    populateBalanceMonths();
+    renderOverview();
+    renderBalance();
+    showTab('code');
+    document.getElementById('upload-msg').textContent = 'Uploaded '+rows.length+' rows.';
+  };
+  if(ext === 'csv') reader.readAsText(file); else reader.readAsBinaryString(file);
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  loadFinance();
+  document.getElementById('tab-settings').addEventListener('click', () => showTab('settings'));
+  document.getElementById('tab-code').addEventListener('click', () => showTab('code'));
+  document.getElementById('tab-budgets').addEventListener('click', () => showTab('budgets'));
+  document.getElementById('tab-pots').addEventListener('click', () => { resetPotForm(); showTab('pots'); });
+});
+document.getElementById('add-account').addEventListener('click', () => {
+  const name = document.getElementById('new-account').value.trim();
+  if(!name || financeData.accounts.includes(name)) return;
+  financeData.accounts.push(name);
+  document.getElementById('new-account').value='';
+  updateAccountList();
+  renderStartBalances();
+  saveFinance();
+});
+
+document.getElementById('filter-uncoded').addEventListener('change', renderTransactions);
+document.getElementById('toggle-file').addEventListener('change', renderTransactions);
+
+document.getElementById('apply-filters').addEventListener('click', () => {
+  renderTransactions();
+});
+
+document.querySelectorAll('#tx-table thead .sort-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const field=btn.dataset.field;
+    if(txSortField===field){ txSortDir *= -1; }
+    else { txSortField=field; txSortDir=1; }
+    renderTransactions();
+  });
+});
+
+document.getElementById('pot-form').addEventListener('submit', e=>{
+  e.preventDefault();
+  const kind=document.getElementById('pot-kind').value;
+  const name=document.getElementById('pot-name').value.trim();
+  const account=document.getElementById('pot-account').value;
+  const desc=document.getElementById('pot-desc').value.trim();
+  const start=document.getElementById('pot-start').value;
+  const end=document.getElementById('pot-end').value;
+  const goalVal=parseFloat(document.getElementById('pot-goal').value);
+  const targetVal=parseFloat(document.getElementById('pot-target').value);
+  const starting=parseFloat(document.getElementById('pot-starting').value)||0;
+  const pot={id:editingPotIndex!==null?financeData.pots[editingPotIndex].id:financeData.nextPotId++,kind,name,account,desc,start,end,goal:isNaN(goalVal)?null:goalVal,target:isNaN(targetVal)?null:targetVal,startAmount:starting};
+  if(editingPotIndex!==null){
+    financeData.pots[editingPotIndex]=pot;
+  } else {
+    financeData.pots.push(pot);
+  }
+  saveFinance();
+  renderPots();
+  renderTransactions();
+  resetPotForm();
+});
+
+document.getElementById('pot-view-form').addEventListener('submit', e=>{
+  e.preventDefault();
+  const kind=document.getElementById('view-pot-kind').value;
+  const name=document.getElementById('view-pot-name').value.trim();
+  const account=document.getElementById('view-pot-account').value;
+  const desc=document.getElementById('view-pot-desc').value.trim();
+  const start=document.getElementById('view-pot-start').value;
+  const end=document.getElementById('view-pot-end').value;
+  const goalVal=parseFloat(document.getElementById('view-pot-goal').value);
+  const targetVal=parseFloat(document.getElementById('view-pot-target').value);
+  const starting=parseFloat(document.getElementById('view-pot-starting').value)||0;
+  const pot={id:financeData.pots[editingPotIndex].id,kind,name,account,desc,start,end,goal:isNaN(goalVal)?null:goalVal,target:isNaN(targetVal)?null:targetVal,startAmount:starting};
+  if(editingPotIndex!==null){
+    financeData.pots[editingPotIndex]=pot;
+  }
+  saveFinance();
+  renderPots();
+  renderTransactions();
+  editingPotIndex=null;
+  document.getElementById('pot-modal').style.display='none';
+});
+document.getElementById('close-pot-modal').addEventListener('click',()=>{
+  editingPotIndex=null;
+  document.getElementById('pot-modal').style.display='none';
+});
+
+document.getElementById('delete-pot').addEventListener('click',()=>{
+  if(editingPotIndex!==null && confirm('Delete pot?')){
+    const removed=financeData.pots.splice(editingPotIndex,1)[0];
+    financeData.transactions.forEach(t=>{ if(t.potId===removed.id) t.potId=null; });
+    saveFinance();
+    renderPots();
+    renderTransactions();
+    editingPotIndex=null;
+    document.getElementById('pot-modal').style.display='none';
+  }
+});
+
+document.getElementById('show-duplicates').addEventListener('click', () => {
+  renderDuplicates();
+  document.getElementById('duplicates-modal').style.display = 'block';
+});
+
+document.getElementById('download-excel').addEventListener('click', async () => {
+  const res = await fetch('/api/finance-export');
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'finance-master.xlsx';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+document.getElementById('select-all').addEventListener('change', e=>{
+  document.querySelectorAll('#tx-table tbody .tx-select').forEach(cb=>cb.checked=e.target.checked);
+});
+document.getElementById('delete-selected').addEventListener('click', ()=>{
+  const ids=Array.from(document.querySelectorAll('#tx-table tbody .tx-select:checked')).map(cb=>parseInt(cb.dataset.id));
+  if(!ids.length) return;
+  financeData.transactions=financeData.transactions.filter(tx=>!ids.includes(tx.id));
+  saveFinance();
+  renderTransactions();
+  renderPots();
+});
+document.getElementById('close-duplicates').addEventListener('click', () => {
+  document.getElementById('duplicates-modal').style.display = 'none';
+});
+
+function renderDuplicates(){
+  const tbody = document.querySelector('#duplicates-table tbody');
+  tbody.innerHTML = '';
+  financeData.transactions.filter(t=>t.duplicate).forEach(tx=>{
+    const tr = document.createElement('tr');
+    const keepBtn = document.createElement('button');
+    keepBtn.textContent = 'Keep';
+    keepBtn.addEventListener('click', ()=>{ tx.duplicate=false; saveFinance(); renderTransactions(); renderDuplicates(); });
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = 'Remove';
+    removeBtn.addEventListener('click', ()=>{ financeData.transactions = financeData.transactions.filter(t=>t.id!==tx.id); saveFinance(); renderTransactions(); renderPots(); renderDuplicates(); });
+    const tdAction = document.createElement('td');
+    tdAction.appendChild(keepBtn); tdAction.appendChild(removeBtn);
+    tr.innerHTML = `<td>${tx.date}</td><td>${tx.description}</td><td>${tx.amount}</td><td>${tx.accountName}</td><td>${tx.sourceFile}</td>`;
+    tr.appendChild(tdAction);
+    tbody.appendChild(tr);
+  });
+}
+
+function validatePeriod(start,end,ignoreIdx=-1){
+  const s=parseDate(start); const e=parseDate(end);
+  if(Number.isNaN(s.getTime()) || Number.isNaN(e.getTime()) || s>e) return false;
+  for(let i=0;i<financeData.budgetPeriods.length;i++){
+    if(i===ignoreIdx) continue;
+    const p=financeData.budgetPeriods[i];
+    const ps=parseDate(p.start); const pe=parseDate(p.end);
+    if(!(e<ps || s>pe)) return false;
+  }
+  return true;
+}
+
+function setNextPeriodStart(){
+  const input=document.getElementById('period-start');
+  if(!input) return;
+  if(financeData.budgetPeriods.length){
+    const last=financeData.budgetPeriods.slice().sort((a,b)=>parseDate(a.start)-parseDate(b.start)).pop();
+    const next=new Date(parseDate(last.end).getTime()+86400000); // next day
+    input.value=next.toISOString().slice(0,10);
+  } else {
+    input.value='';
+  }
+  const end=document.getElementById('period-end'); if(end) end.value='';
+  const month=document.getElementById('period-month'); if(month) month.value='';
+}
+
+function renderPeriods(){
+  const tbody=document.querySelector('#period-table tbody');
+  if(!tbody) return;
+  tbody.innerHTML='';
+  financeData.budgetPeriods.sort((a,b)=>parseDate(a.start)-parseDate(b.start)).forEach((p,i)=>{
+    const tr=document.createElement('tr');
+    const actions=document.createElement('td');
+    const edit=document.createElement('button'); edit.textContent='Edit';
+    edit.addEventListener('click',()=>{
+      const start=prompt('Start date (YYYY-MM-DD)',p.start);
+      const end=prompt('End date (YYYY-MM-DD)',p.end);
+      const month=prompt('Month (MM YYYY)',p.month);
+      if(!start||!end||!month) return;
+      if(!validatePeriod(start,end,i)){ alert('Invalid or overlapping period'); return; }
+      p.start=start; p.end=end; p.month=month;
+      financeData.budgetPeriods.sort((a,b)=>parseDate(a.start)-parseDate(b.start));
+      assignMonthsAll();
+      saveFinance();
+      renderPeriods();
+      populateOverviewMonths();
+      populateBalanceMonths();
+      renderOverview();
+      renderBalance();
+      renderTransactions();
+    });
+    const del=document.createElement('button'); del.textContent='Delete';
+    del.addEventListener('click',()=>{
+      financeData.budgetPeriods.splice(i,1);
+      assignMonthsAll();
+      saveFinance();
+      renderPeriods();
+      populateOverviewMonths();
+      populateBalanceMonths();
+      renderOverview();
+      renderBalance();
+      renderTransactions();
+    });
+    actions.appendChild(edit); actions.appendChild(del);
+    tr.innerHTML=`<td>${p.start}</td><td>${p.end}</td><td>${p.month}</td>`;
+    tr.appendChild(actions);
+    tbody.appendChild(tr);
+  });
+  setNextPeriodStart();
+}
+
+function populateOverviewMonths(){
+  const sel=document.getElementById('overview-month');
+  if(!sel) return;
+  const prev = Array.from(sel.selectedOptions).map(o=>o.value);
+  const months=new Set(financeData.transactions.map(t=>t.month).filter(m=>m));
+  sel.innerHTML='';
+  const map={};
+  financeData.budgetPeriods.forEach(p=>{map[p.month]=parseDate(p.start).getTime();});
+  Array.from(months).sort((a,b)=>{
+    return (map[a]||0)-(map[b]||0);
+  }).forEach(m=>{
+    const o=document.createElement('option');
+    o.value=m;
+    o.textContent=m;
+    if(prev.includes(m)) o.selected=true;
+    sel.appendChild(o);
+  });
+  if(!sel.selectedOptions.length && sel.options.length){
+    sel.options[sel.options.length-1].selected=true;
+  }
+}
+
+function populateBalanceMonths(){
+  const sel=document.getElementById('balance-month');
+  if(!sel) return;
+  const prev=sel.value;
+  const months=new Set(financeData.transactions.map(t=>t.month).filter(m=>m));
+  financeData.budgetPeriods.forEach(p=>{ if(p.month) months.add(p.month); });
+  const map={}; financeData.budgetPeriods.forEach(p=>{ map[p.month]=parseDate(p.start).getTime(); });
+  sel.innerHTML='';
+  Array.from(months).sort((a,b)=>{ return (map[a]||0)-(map[b]||0); }).forEach(m=>{
+    const o=document.createElement('option'); o.value=m; o.textContent=m; sel.appendChild(o);
+  });
+  if(prev && months.has(prev)) sel.value=prev; else if(sel.options.length) sel.value=sel.options[sel.options.length-1].value;
+}
+
+function shiftMonth(month, offset){
+  if(!month) return '';
+  const [m,y]=month.split(' ').map(Number);
+  const d=new Date(y,m-1,1);
+  d.setMonth(d.getMonth()+offset);
+  return `${String(d.getMonth()+1).padStart(2,'0')} ${d.getFullYear()}`;
+}
+
+function isIncomeCategory(cat){
+  return /income/i.test(cat);
+}
+
+function renderStartBalances(){
+  const form=document.getElementById('start-balance-form');
+  if(!form) return;
+  const sb=financeData.startBalances||{date:'',accounts:{}};
+  document.getElementById('start-balance-date').value=sb.date||'';
+  const container=document.getElementById('start-balance-accounts');
+  container.innerHTML='';
+  financeData.accounts.forEach(acc=>{
+    const val=sb.accounts&&sb.accounts[acc]?sb.accounts[acc]:0;
+    const label=document.createElement('label');
+    label.textContent=acc;
+    const inp=document.createElement('input'); inp.type='number'; inp.step='0.01'; inp.dataset.acc=acc; inp.value=val;
+    label.appendChild(inp);
+    container.appendChild(label);
+  });
+}
+
+function renderBalance(){
+  const sel=document.getElementById('balance-month');
+  if(!sel||!sel.value) return;
+  const months=[];
+  for(let i=3;i>0;i--) months.push(shiftMonth(sel.value,-i));
+  months.push(sel.value);
+  for(let i=1;i<=3;i++) months.push(shiftMonth(sel.value,i));
+  
+  // Define the show variables that are used later in the function
+  const showBud = document.getElementById('show-budgeted') ? document.getElementById('show-budgeted').checked : true;
+  const showIncome = document.getElementById('show-income') ? document.getElementById('show-income').checked : false;
+  const showRem = document.getElementById('show-remaining') ? document.getElementById('show-remaining').checked : false;
+  
+  const sb=financeData.startBalances||{date:'',accounts:{}};
+  const startTotal=Object.values(sb.accounts||{}).reduce((s,v)=>s+parseFloat(v||0),0);
+  const data={income:{},expense:{}};
+  const totals={income:{actual:Array(7).fill(0),budget:Array(7).fill(0)},expense:{actual:Array(7).fill(0),budget:Array(7).fill(0)}};
+  // ensure categories exist
+  financeData.budgetCategories.forEach(cat=>{
+    const sec=isIncomeCategory(cat)?'income':'expense';
+    if(!data[sec][cat]) data[sec][cat]={subs:{},actual:Array(7).fill(0),budget:Array(7).fill(0)};
+  });
+  financeData.budgets.forEach(b=>{
+    const sec=isIncomeCategory(b.type)?'income':'expense';
+    if(!data[sec][b.type]) data[sec][b.type]={subs:{},actual:Array(7).fill(0),budget:Array(7).fill(0)};
+    if(!data[sec][b.type].subs[b.name]) data[sec][b.type].subs[b.name]={actual:Array(7).fill(0),budget:Array(7).fill(0)};
+  });
+  financeData.transactions.forEach(tx=>{
+    const cat=tx.type||'';
+    const sub=tx.subType||'';
+    const sec=parseFloat(tx.amount||0)>0?'income':'expense';
+    if(!data[sec][cat]) data[sec][cat]={subs:{},actual:Array(7).fill(0),budget:Array(7).fill(0)};
+    if(sub && !data[sec][cat].subs[sub]) data[sec][cat].subs[sub]={actual:Array(7).fill(0),budget:Array(7).fill(0)};
+  });
+  months.forEach((m,idx)=>{
+    financeData.transactions.filter(t=>t.month===m && !t.transfer).forEach(t=>{
+      const amt=parseFloat(t.amount||0);
+      const sec=amt>0?'income':'expense';
+      const val=Math.abs(amt);
+      totals[sec].actual[idx]+=val;
+      const cat=t.type||'';
+      const sub=t.subType||'';
+      if(data[sec][cat]){
+        data[sec][cat].actual[idx]+=val;
+        if(sub && data[sec][cat].subs[sub]) data[sec][cat].subs[sub].actual[idx]+=val;
+      }
+    });
+    financeData.budgets.forEach(b=>{
+      const amount=baseAmountForMonth(b,m)+extraForMonth(b,m);
+      if(amount>0){
+        const sec=isIncomeCategory(b.type)?'income':'expense';
+        totals[sec].budget[idx]+=amount;
+        if(data[sec][b.type]){
+          data[sec][b.type].budget[idx]+=amount;
+          if(data[sec][b.type].subs[b.name]) data[sec][b.type].subs[b.name].budget[idx]+=amount;
+        }
+      }
+    });
+  });
+  const thead=document.querySelector('#balance-table thead');
+  let head='<tr><th>Item</th>';
+  months.forEach(m=>{
+    const label=formatMonth(m);
+    if(showBud) head+=`<th>Budgeted (${label})</th>`;
+    head+=`<th>Spent (${label})</th>`;
+    if(showIncome) head+=`<th>Income (${label})</th>`;
+    if(showRem) head+=`<th>Remaining (${label})</th>`;
+  });
+  head+='<th>Status</th>';
+  thead.innerHTML=head;
+  const tbody=document.querySelector('#balance-table tbody');
+  tbody.innerHTML='';
+  const opening=[]; const closing=[];
+  opening[0]=startTotal;
+  const curIncome=Object.values(data.income).reduce((s,c)=>s+Math.max(c.actual[3],c.budget[3]),0);
+  const curExpense=Object.values(data.expense).reduce((s,c)=>s+Math.max(c.actual[3],c.budget[3]),0);
+  for(let i=0;i<7;i++){
+    let net;
+    if(i<3){
+      net=totals.income.actual[i]-totals.expense.actual[i];
+    } else if(i===3){
+      net=curIncome-curExpense;
+    } else {
+      net=totals.income.budget[i]-totals.expense.budget[i];
+    }
+    closing[i]=(opening[i]||0)+net;
+    if(i<6) opening[i+1]=closing[i];
+  }
+  const openRow=document.createElement('tr');
+  openRow.innerHTML='<td>Opening Balance</td>'+opening.map(o=>`<td>${o.toFixed(2)}</td>`).join('');
+  tbody.appendChild(openRow);
+
+  function renderSection(sec){
+    const secRow=document.createElement('tr');
+    const totalsArr=totals[sec];
+    secRow.innerHTML=`<td><button class="toggle" data-section="${sec}">+</button>${sec==='income'?'Total Income':'Total Expenditure'}</td>`+
+      months.map((m,idx)=>{
+        if(idx===3){ return `<td>${totalsArr.actual[idx].toFixed(2)} / ${totalsArr.budget[idx].toFixed(2)}</td>`; }
+        if(idx<3){ return `<td>${totalsArr.actual[idx].toFixed(2)}</td>`; }
+        return `<td>${totalsArr.budget[idx].toFixed(2)}</td>`;
+      }).join('');
+    tbody.appendChild(secRow);
+    Object.keys(data[sec]).forEach(cat=>{
+      const catRow=document.createElement('tr');
+      catRow.classList.add(sec+'-cat');
+      catRow.style.display='none';
+      const cdata=data[sec][cat];
+      catRow.innerHTML=`<td style="padding-left:20px;"><button class="toggle" data-cat="${cat.replace(/\s+/g,'-')}">+</button>${cat}</td>`+
+        months.map((m,idx)=>{
+          if(idx===3){ return `<td>${cdata.actual[idx].toFixed(2)} / ${cdata.budget[idx].toFixed(2)}</td>`; }
+          if(idx<3){ return `<td>${cdata.actual[idx].toFixed(2)}</td>`; }
+          return `<td>${cdata.budget[idx].toFixed(2)}</td>`;
+        }).join('');
+      tbody.appendChild(catRow);
+      Object.keys(cdata.subs).forEach(sub=>{
+        const srow=document.createElement('tr');
+        srow.classList.add('cat-'+cat.replace(/\s+/g,'-'));
+        srow.style.display='none';
+        const sdata=cdata.subs[sub];
+        srow.innerHTML=`<td style="padding-left:40px;">${sub}</td>`+
+          months.map((m,idx)=>{
+            if(idx===3){ return `<td>${sdata.actual[idx].toFixed(2)} / ${sdata.budget[idx].toFixed(2)}</td>`; }
+            if(idx<3){ return `<td>${sdata.actual[idx].toFixed(2)}</td>`; }
+            return `<td>${sdata.budget[idx].toFixed(2)}</td>`;
+          }).join('');
+        tbody.appendChild(srow);
+      });
+    });
+  }
+
+  renderSection('income');
+  renderSection('expense');
+
+  const closeRow=document.createElement('tr');
+  closeRow.innerHTML='<td>Closing Balance</td>'+closing.map(c=>`<td>${c.toFixed(2)}</td>`).join('');
+  tbody.appendChild(closeRow);
+}
+
+function renderOverview(){
+  const monthSel=document.getElementById('overview-month');
+  if(!monthSel) return;
+  const months=Array.from(monthSel.selectedOptions).map(o=>o.value);
+  if(!months.length) return;
+  const showBud=document.getElementById('show-budgeted').checked;
+  const showRem=document.getElementById('show-remaining').checked;
+  const showIncome=document.getElementById('show-income').checked;
+  const showArch=document.getElementById('toggle-archived').checked;
+  const extraDisplay=document.getElementById('extra-display')?document.getElementById('extra-display').value:'merge';
+  const thead=document.querySelector('#overview-table thead tr');
+  let headHtml='<th>Budget Item</th>';
+  months.forEach(m=>{
+    const label=formatMonth(m);
+    if(showBud) headHtml+=`<th>Budgeted (${label})</th>`;
+    headHtml+=`<th>Spent (${label})</th>`;
+    if(showIncome) headHtml+=`<th>Income (${label})</th>`;
+    if(showRem) headHtml+=`<th>Remaining (${label})</th>`;
+  });
+  headHtml+='<th>Status</th>';
+  thead.innerHTML=headHtml;
+  const tbody=document.querySelector('#overview-table tbody');
+  tbody.innerHTML='';
+  financeData.budgetCategories.forEach(cat=>{
+    const subs=financeData.budgets.filter(b=>b.type===cat && (showArch||!b.archived));
+    const catRow=document.createElement('tr');
+    let catHtml=`<td>${cat}</td>`;
+    let overallRem=0;
+    months.forEach(m=>{
+      let base=0, extra=0;
+      subs.forEach(sub=>{ base+=baseAmountForMonth(sub,m); extra+=extraForMonth(sub,m); });
+      const budget=base+extra;
+      const txs=financeData.transactions.filter(t=>t.type===cat && t.month===m && !t.transfer);
+      const spent=txs.filter(t=>parseFloat(t.amount||0)<0).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+      const income=txs.filter(t=>parseFloat(t.amount||0)>0).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+      const rem=budget + spent + income;
+      if(showBud){
+        if(extraDisplay==='separate' && extra>0){
+          catHtml+=`<td>${base.toFixed(2)}<div style="color:pink;font-weight:bold;font-size:0.8rem;">+${extra.toFixed(2)}</div></td>`;
+        } else {
+          catHtml+=`<td>${budget.toFixed(2)}</td>`;
+        }
+      }
+      catHtml+=`<td>${spent.toFixed(2)}</td>`;
+      if(showIncome) catHtml+=`<td>${income.toFixed(2)}</td>`;
+      if(showRem) catHtml+=`<td style="color:${rem<0?'red':'green'}">${rem.toFixed(2)}</td>`;
+      overallRem+=rem;
+    });
+    catHtml+=`<td>${overallRem>=0?'\u2705':'\u274c'}</td>`;
+    catRow.innerHTML=catHtml;
+    tbody.appendChild(catRow);
+    subs.forEach(sub=>{
+      const tr=document.createElement('tr');
+      let subHtml=`<td style="padding-left:20px;">${sub.name}</td>`;
+      months.forEach(m=>{
+        const base=baseAmountForMonth(sub,m);
+        const extra=extraForMonth(sub,m);
+        const budget=base+extra;
+        const txs=financeData.transactions.filter(t=>t.type===cat && t.subType===sub.name && t.month===m && !t.transfer);
+        const spent=txs.filter(t=>parseFloat(t.amount||0)<0).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+        const income=txs.filter(t=>parseFloat(t.amount||0)>0).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+        const rem=budget + spent + income;
+        if(showBud){
+          if(extraDisplay==='separate' && extra>0){
+            subHtml+=`<td>${base.toFixed(2)}<div style="color:pink;font-weight:bold;font-size:0.8rem;">+${extra.toFixed(2)}</div></td>`;
+          } else {
+            subHtml+=`<td>${budget.toFixed(2)}</td>`;
+          }
+        }
+        subHtml+=`<td>${spent.toFixed(2)}</td>`;
+        if(showIncome) subHtml+=`<td>${income.toFixed(2)}</td>`;
+        if(showRem) subHtml+=`<td style="color:${rem<0?'red':'green'}">${rem.toFixed(2)}</td>`;
+      });
+      subHtml+='<td></td>';
+      tr.innerHTML=subHtml;
+      tbody.appendChild(tr);
+    });
+  });
+}
+  
+function recalcPots(){
+  financeData.pots.forEach(p=>{
+    const start = parseFloat(p.startAmount) || 0;
+    const total = financeData.transactions
+      .filter(t => t.potId === p.id)
+      .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+    p.current = parseFloat((start + total).toFixed(2));
+  });
+}
+
+function renderPots(){
+  console.log('renderPots called');
+  console.log('financeData.pots:', financeData.pots);
+  const debtDiv=document.getElementById('debt-pots');
+  const saveDiv=document.getElementById('saving-pots');
+  if(!debtDiv||!saveDiv) {
+    console.log('ERROR: debt-pots or saving-pots divs not found');
+    return;
+  }
+  debtDiv.innerHTML=''; saveDiv.innerHTML='';
+  
+  if (!financeData.pots) {
+    console.log('ERROR: financeData.pots is undefined or null');
+    return;
+  }
+  
+  console.log('About to recalc pots, pots count:', financeData.pots.length);
+  recalcPots();
+  financeData.pots.forEach((p,i)=>{
+    const box=document.createElement('div');
+    box.className='pot '+(p.kind==='saving'?'saving':'debt');
+    box.innerHTML=`<div class="pot-name">${p.name}</div><div>£${p.current.toFixed(2)}</div>`;
+    const actions=document.createElement('div');
+    actions.className='actions';
+    const view=document.createElement('button');
+    view.textContent='View';
+    view.addEventListener('click',()=>openPotModal(p,i));
+    actions.appendChild(view);
+    box.appendChild(actions);
+    if(p.kind==='saving') saveDiv.appendChild(box); else debtDiv.appendChild(box);
+  });
+  updateRulePotOptions();
+}
+
+// Index of the pot currently being edited (null when creating new)
+let editingPotIndex = null;
+function openPotModal(p,i){
+  document.getElementById('view-pot-kind').value=p.kind;
+  document.getElementById('view-pot-name').value=p.name;
+  document.getElementById('view-pot-account').value=p.account||'';
+  document.getElementById('view-pot-desc').value=p.desc||'';
+  document.getElementById('view-pot-start').value=p.start||'';
+  document.getElementById('view-pot-end').value=p.end||'';
+  document.getElementById('view-pot-goal').value=p.goal??'';
+  document.getElementById('view-pot-target').value=p.target??'';
+  document.getElementById('view-pot-starting').value=p.startAmount??'';
+  document.getElementById('view-pot-current').textContent=p.current.toFixed(2);
+  const txDiv=document.getElementById('pot-transactions');
+  const linked=financeData.transactions.filter(t=>t.potId===p.id);
+  let html='<h3>Transactions</h3>';
+  if(linked.length){
+    html+='<table><thead><tr><th>Date</th><th>Description</th><th>Amount</th></tr></thead><tbody>';
+    let total=0;
+    linked.forEach(t=>{ total+=parseFloat(t.amount)||0; html+=`<tr><td>${t.date}</td><td>${t.description}</td><td>${t.amount}</td></tr>`; });
+    html+='</tbody></table>';
+    html+=`<div><strong>Total from transactions:</strong> £${total.toFixed(2)}</div>`;
+  } else {
+    html+='<p>No transactions linked</p>';
+  }
+  txDiv.innerHTML=html;
+  editingPotIndex=i;
+  document.getElementById('pot-modal').style.display='block';
+}
+
+function resetPotForm(){
+  document.getElementById('pot-form').reset();
+  editingPotIndex=null;
+  document.getElementById('pot-submit').textContent='Create';
+}
+
+document.getElementById('period-form').addEventListener('submit',e=>{
+  e.preventDefault();
+  const start=document.getElementById('period-start').value;
+  const end=document.getElementById('period-end').value;
+  const monthVal=document.getElementById('period-month').value;
+  const month=monthVal?`${monthVal.split('-')[1]} ${monthVal.split('-')[0]}`:'';
+  if(!start||!end||!month) return;
+  if(!validatePeriod(start,end)){ alert('Invalid or overlapping period'); return; }
+  financeData.budgetPeriods.push({start,end,month});
+  financeData.budgetPeriods.sort((a,b)=>parseDate(a.start)-parseDate(b.start));
+  assignMonthsAll();
+  saveFinance();
+  renderPeriods();
+  populateOverviewMonths();
+  populateBalanceMonths();
+  renderOverview();
+  renderBalance();
+  renderTransactions();
+});
+
+document.getElementById('overview-month').addEventListener('change',renderOverview);
+document.getElementById('show-budgeted').addEventListener('change',renderOverview);
+document.getElementById('show-remaining').addEventListener('change',renderOverview);
+document.getElementById('show-income').addEventListener('change',renderOverview);
+document.getElementById('toggle-archived').addEventListener('change',renderOverview);
+document.getElementById('extra-display').addEventListener('change',renderOverview);
+document.getElementById('balance-month').addEventListener('change',renderBalance);
+document.getElementById('start-balance-form').addEventListener('submit',e=>{
+  e.preventDefault();
+  const date=document.getElementById('start-balance-date').value;
+  const accounts={};
+  document.querySelectorAll('#start-balance-accounts input').forEach(inp=>{
+    accounts[inp.dataset.acc]=parseFloat(inp.value||0);
+  });
+  financeData.startBalances={date,accounts};
+  saveFinance();
+  renderBalance();
+});
+document.addEventListener('click',e=>{
+  if(e.target.classList.contains('toggle')){
+    if(e.target.dataset.section){
+      const rows=document.querySelectorAll('.'+e.target.dataset.section+'-cat');
+      const show=e.target.textContent==='+';
+      rows.forEach(r=>{r.style.display=show?'':'none';});
+      e.target.textContent=show?'-':'+';
+    } else if(e.target.dataset.cat){
+      const rows=document.querySelectorAll('.cat-'+e.target.dataset.cat);
+      const show=e.target.textContent==='+';
+      rows.forEach(r=>{r.style.display=show?'':'none';});
+      e.target.textContent=show?'-':'+';
+    }
+  }
+});
+
+// Section toggle and pin functionality (copied from index.html)
+let pinnedSections = JSON.parse(localStorage.getItem('finance-pinnedSections') || '[]');
+
+function toggle(sectionId) {
+  const section = document.getElementById(sectionId);
+  if (!section) return;
+  
+  const isPinned = pinnedSections.includes(sectionId);
+  if (isPinned) return; // Don't toggle if pinned
+  
+  if (section.style.display === 'none') {
+    section.style.display = 'block';
+  } else {
+    section.style.display = 'none';
+  }
+}
+
+function togglePin(sectionId) {
+  const pinStar = document.querySelector(`[onclick*="togglePin('${sectionId}')"]`);
+  const section = document.getElementById(sectionId);
+  
+  if (pinnedSections.includes(sectionId)) {
+    // Unpin - star becomes black, section will be closed by default on next load
+    pinnedSections = pinnedSections.filter(id => id !== sectionId);
+    pinStar.classList.remove('pinned');
+    pinStar.title = 'Pin section open';
+  } else {
+    // Pin - star becomes white, section will be open by default on next load
+    pinnedSections.push(sectionId);
+    pinStar.classList.add('pinned');
+    pinStar.title = 'Unpin section';
+    section.style.display = 'block'; // Ensure pinned sections are visible
+  }
+  
+  localStorage.setItem('finance-pinnedSections', JSON.stringify(pinnedSections));
+}
+
+// Initialize sections on page load based on pin status
+function initializePinnedSections() {
+  document.querySelectorAll('.section-header .pin-star').forEach(pinStar => {
+    const onclickAttr = pinStar.getAttribute('onclick');
+    if (onclickAttr) {
+      const match = onclickAttr.match(/togglePin\('([^']+)'\)/);
+      if (match) {
+        const sectionId = match[1];
+        const section = document.getElementById(sectionId);
+        
+        if (pinnedSections.includes(sectionId)) {
+          // White star = pinned = open by default
+          pinStar.classList.add('pinned');
+          pinStar.title = 'Unpin section';
+          if (section) section.style.display = 'block';
+        } else {
+          // Black star = not pinned = closed by default
+          pinStar.classList.remove('pinned');
+          pinStar.title = 'Pin section open';
+          if (section) section.style.display = 'none';
+        }
+      }
+    }
+  });
+}
+
+// Call initialization when page loads
+window.addEventListener('DOMContentLoaded', initializePinnedSections);
+
+</script>
+</body>
+</html>
