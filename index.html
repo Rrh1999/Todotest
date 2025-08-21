@@ -959,6 +959,12 @@ function formatUK(date) {
   if (isNaN(d)) return date || '';
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: '2-digit' });
 }
+
+function countLastMonth(dates) {
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - 1);
+  return dates.filter(d => new Date(d) >= cutoff).length;
+}
 function showMessage(msg) {
   const toast = document.getElementById("toast");
   toast.textContent = msg;
@@ -1769,13 +1775,14 @@ function renderStretch() {
   const table = document.createElement('table');
   table.className = 'task-table';
   const head = document.createElement('tr');
-  head.innerHTML = '<th>Task</th><th>Last Done</th><th style="min-width:200px;">Action</th>';
+  head.innerHTML = '<th>Task</th><th>Last Done</th><th>How Frequently</th><th style="min-width:200px;">Action</th>';
   table.appendChild(head);
   open.forEach(t => {
     const tr = document.createElement('tr');
     const proj = projects.find(p => p.name === t.project);
     const color = proj ? proj.color : '#000';
     const last = t.completedDates.length ? formatUK(t.completedDates[t.completedDates.length-1]) : '';
+    const freq = countLastMonth(t.completedDates);
     
     // Task cell with project underneath
     const taskCell = document.createElement('td');
@@ -1791,7 +1798,12 @@ function renderStretch() {
     taskCell.appendChild(projectName);
     
     tr.appendChild(taskCell);
-    tr.innerHTML += `<td>${last}</td>`;
+    const lastTd = document.createElement('td');
+    lastTd.textContent = last;
+    tr.appendChild(lastTd);
+    const freqTd = document.createElement('td');
+    freqTd.textContent = freq;
+    tr.appendChild(freqTd);
     
   const td = document.createElement('td');
   td.style.display = 'grid';

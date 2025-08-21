@@ -294,7 +294,11 @@ app.get('/api/finance-export', (req, res) => {
   res.send(buf);
 });
 
-initDb();
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT} (data dir: ${DATA_DIR})`);
-});
+if (require.main === module) {
+  initDb();
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT} (data dir: ${DATA_DIR})`);
+  });
+}
+
+module.exports = { app, initDb };

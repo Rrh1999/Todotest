@@ -80,6 +80,8 @@ body { margin: 0; padding: 0; }
     <ul id="bigTaskList" class="task-list hidden"></ul>
     <label style="display:block;margin-top:0.5rem;"><input type="checkbox" id="diyBigToggle"> Show DIY Big Tasks</label>
     <ul id="diyBigTaskList" class="task-list hidden"></ul>
+    <label style="display:block;margin-top:0.5rem;"><input type="checkbox" id="devToggle"> Show Development Activities</label>
+    <ul id="devTaskList" class="task-list hidden"></ul>
   </div>
   <div id="main">
     <!-- This can be used for additional content later -->
@@ -204,7 +206,7 @@ body { margin: 0; padding: 0; }
 </div>
 
 <script>
-let projects=[], weeklyTasks=[], oneOffTasks=[], recurringTasks=[], stretchTasks=[], bigTasks=[], deletedTasks=[], shoppingList=[], longTermList=[], generalList=[];
+let projects=[], weeklyTasks=[], oneOffTasks=[], recurringTasks=[], stretchTasks=[], bigTasks=[], deletedTasks=[], shoppingList=[], longTermList=[], generalList=[], parentingSkills=[], parentingActivities=[], parentingNextSkillId=1, parentingNextActivityId=1;
 let todayList=[], todayTasks=[], todayQuickHistory=[];
 // Removed Overdue/Due Soon lists
 let nextId=1;
@@ -280,6 +282,14 @@ async function loadData(){
       diyBigTasks=diyDataStore.diyBigTasks||[];
       diyCalendar=diyDataStore.calendarEvents||[];
     }
+    const resP=await fetch('/api/parenting-data');
+    if(resP.ok){
+      const pd=await resP.json();
+      parentingSkills=pd.skills||[];
+      parentingActivities=pd.activities||[];
+      parentingNextSkillId=pd.nextSkillId||1;
+      parentingNextActivityId=pd.nextActivityId||1;
+    }
   }catch(e){console.error('Failed to load data',e);}
 }
 async function saveData(){const data={projects,weeklyTasks,oneOffTasks,recurringTasks,stretchTasks,bigTasks,deletedTasks,shoppingList,longTermList,generalList,todayList,nextId,todayQuickHistory};try{await fetch('/api/index-data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}catch(e){console.error('Failed to save data',e);}}
@@ -295,6 +305,10 @@ async function saveDiyData(){
   try{
     await fetch('/api/diy-data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(diyDataStore)});
   }catch(e){console.error('Failed to save diy data',e);}
+}
+async function saveParentingData(){
+  const data={skills:parentingSkills,activities:parentingActivities,nextSkillId:parentingNextSkillId,nextActivityId:parentingNextActivityId};
+  try{await fetch('/api/parenting-data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}catch(e){console.error('Failed to save parenting data',e);}
 }
 // Removed categorize/overdue logic
 function rebuildToday(){
@@ -313,6 +327,7 @@ function rebuildToday(){
     else if(r.type==='stretch') arr=stretchTasks;
     else if(r.type==='big') arr=bigTasks;
     else if(r.type==='diybig') arr=diyBigTasks;
+    else if(r.type==='dev') arr=parentingActivities;
     let task=null, depth=0;
     if(r.type==='work'){
       const info=getWorkTaskInfo(r.id);
@@ -339,6 +354,9 @@ function rebuildToday(){
     } else if(r.type==='diybig'){
       todayTasks.push({category:'diybig',type:'diybig',item:task});
       return;
+    } else if(r.type==='dev'){
+      todayTasks.push({category:'dev',type:'dev',item:task});
+      return;
     }
   // No overdue/due buckets anymore; just push a simple today item
   todayTasks.push({category:'today',type:r.type,item:task});
@@ -350,6 +368,7 @@ function renderSide(){
   if(document.getElementById('stretchToggle').checked) renderStretchTasks();
   if(document.getElementById('bigToggle').checked) renderBigTasks();
   if(document.getElementById('diyBigToggle').checked) renderDiyBigTasks();
+  if(document.getElementById('devToggle').checked) renderDevTasks();
 }
 function renderWorkTasks(){
   const ul=document.getElementById('workTaskList');
@@ -420,15 +439,42 @@ function renderDiyBigTasks(){
     ul.appendChild(li);
   });
 }
+
+function renderDevTasks(){
+  const ul=document.getElementById('devTaskList');
+  ul.innerHTML='';
+  parentingActivities.filter(a=>a.status==='open').forEach(a=>{
+    const skill=parentingSkills.find(s=>s.id===a.skillId);
+    const li=document.createElement('li');
+    li.textContent=`[Parenting - dev] ${a.name} (${skill?skill.name:''})`;
+    const b=document.createElement('button');
+    b.textContent='Add';
+    b.onclick=()=>addDevToToday(a.id);
+    li.appendChild(b);
+    ul.appendChild(li);
+  });
+}
+
+function addDevToToday(id){
+  const task=parentingActivities.find(a=>a.id===id);
+  if(!task) return;
+  todayTasks.push({category:'dev',type:'dev',item:task});
+  todayList.push({type:'dev',id});
+  saveData();
+  saveParentingData();
+  renderToday();
+}
 function updateToggles(){
   const wt=document.getElementById('workToggle');
   const dt=document.getElementById('diyToggle');
   const bt=document.getElementById('bigToggle');
   const db=document.getElementById('diyBigToggle');
+  const dv=document.getElementById('devToggle');
   document.getElementById('workTaskList').classList.toggle('hidden', !wt.checked);
   document.getElementById('diyTaskList').classList.toggle('hidden', !dt.checked);
   document.getElementById('bigTaskList').classList.toggle('hidden', !bt.checked);
   document.getElementById('diyBigTaskList').classList.toggle('hidden', !db.checked);
+  document.getElementById('devTaskList').classList.toggle('hidden', !dv.checked);
 }
 function renderToday(){
   const ul=document.getElementById('todayList');
@@ -447,7 +493,15 @@ function renderToday(){
       if(['oneoff','recurring','weekly','stretch','big'].includes(t.type)) page='Todo';
       else if(t.type==='work') page='Work';
       else if(t.type==='diy' || t.type==='diybig') page='DIY';
-      label=`${t.item.name} (${t.item.project})`;
+      else if(t.type==='dev') page='Parenting';
+      let projectText='';
+      if(t.type==='dev'){
+        const skill=parentingSkills.find(s=>s.id===t.item.skillId);
+        projectText=skill?skill.name:'';
+      }else{
+        projectText=t.item.project;
+      }
+      label=`${t.item.name} (${projectText})`;
       if(t.type==='big' || t.type==='diybig') label='[BIG] '+label;
       let info='';
       if(page==='Todo'){info=t.type;}
@@ -611,6 +665,9 @@ function completeToday(idx){
   }else if(t.type==='diybig'){
     t.item.status='closed';
     saveDiyData();
+  }else if(t.type==='dev'){
+    t.item.completedDates.push(formatISO(now));
+    saveParentingData();
   }
   // Overdue/Due categories removed
   saveData();
@@ -640,6 +697,11 @@ document.getElementById('bigToggle').addEventListener('change',e=>{
 document.getElementById('diyBigToggle').addEventListener('change',e=>{
   document.getElementById('diyBigTaskList').classList.toggle('hidden',!e.target.checked);
   if(e.target.checked) renderDiyBigTasks();
+  updateToggles();
+});
+document.getElementById('devToggle').addEventListener('change',e=>{
+  document.getElementById('devTaskList').classList.toggle('hidden',!e.target.checked);
+  if(e.target.checked) renderDevTasks();
   updateToggles();
 });
 
