@@ -10,6 +10,11 @@ const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : __d
 if (!fs.existsSync(DATA_DIR)) {
   try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (e) { console.error('Failed to create DATA_DIR', e); }
 }
+// Backups directory for data snapshots
+const BACKUP_DIR = path.join(DATA_DIR, 'backups');
+if (!fs.existsSync(BACKUP_DIR)) {
+  try { fs.mkdirSync(BACKUP_DIR, { recursive: true }); } catch (e) { console.error('Failed to create BACKUP_DIR', e); }
+}
 // Allow larger JSON payloads so big finance datasets (including pots) persist
 app.use(express.json({ limit: '5mb' }));
 app.use(express.static(__dirname));
@@ -114,9 +119,74 @@ app.get('/api/index-data', (req, res) => {
 });
 
 app.post('/api/index-data', (req, res) => {
-  indexData = req.body;
+  // Merge incoming changes with existing data to avoid dropping keys not sent by some pages
+  const incoming = req.body || {};
+
+  // Defensive defaults for critical arrays
+  const defaultArrays = {
+    projects: [], weeklyTasks: [], oneOffTasks: [], recurringTasks: [],
+    stretchTasks: [], bigTasks: [], deletedTasks: [], shoppingList: [],
+    longTermList: [], generalList: [], todayList: [], todayQuickHistory: []
+  };
+
+  // Start with current indexData, then apply incoming fields (shallow merge)
+  indexData = { ...defaultArrays, ...indexData, ...incoming };
+
+  // Create a timestamped backup before writing
+  try {
+    if (fs.existsSync(INDEX_FILE)) {
+      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupPath = path.join(BACKUP_DIR, `indexData-${ts}.json`);
+      fs.copyFileSync(INDEX_FILE, backupPath);
+
+      // Retain only the latest 20 backups
+      const files = fs.readdirSync(BACKUP_DIR)
+        .filter(f => f.startsWith('indexData-') && f.endsWith('.json'))
+        .sort();
+      if (files.length > 20) {
+        const toDelete = files.slice(0, files.length - 20);
+        toDelete.forEach(f => {
+          try { fs.unlinkSync(path.join(BACKUP_DIR, f)); } catch {}
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Failed to create backup for indexData.json', e);
+  }
+
+  // Persist merged data
   fs.writeFileSync(INDEX_FILE, JSON.stringify(indexData, null, 2));
   res.json({ status: 'ok' });
+});
+
+// Optional: list available indexData backups
+app.get('/api/index-backups', (req, res) => {
+  try {
+    const files = fs.readdirSync(BACKUP_DIR)
+      .filter(f => f.startsWith('indexData-') && f.endsWith('.json'))
+      .sort()
+      .reverse();
+    res.json({ backups: files });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to list backups' });
+  }
+});
+
+// Optional: restore a specific backup by filename
+app.post('/api/restore-index-backup', (req, res) => {
+  try {
+    const { filename } = req.body || {};
+    if (!filename || filename.includes('..')) return res.status(400).json({ error: 'Invalid filename' });
+    const src = path.join(BACKUP_DIR, filename);
+    if (!fs.existsSync(src)) return res.status(404).json({ error: 'Backup not found' });
+    const content = fs.readFileSync(src, 'utf8');
+    indexData = JSON.parse(content);
+    fs.writeFileSync(INDEX_FILE, JSON.stringify(indexData, null, 2));
+    res.json({ status: 'ok', restored: filename });
+  } catch (e) {
+    console.error('Failed to restore backup', e);
+    res.status(500).json({ error: 'Failed to restore backup' });
+  }
 });
 
 app.get('/api/work-data', (req, res) => {
@@ -182,6 +252,24 @@ app.post('/api/soul-data', (req, res) => {
   soulData = req.body;
   fs.writeFileSync(SOUL_FILE, JSON.stringify(soulData, null, 2));
   res.json({ status: 'ok' });
+});
+
+app.post('/api/add-to-today', (req, res) => {
+  const { taskType, taskId, taskName } = req.body;
+  
+  // Add to todayList in indexData
+  const newTodayItem = {
+    id: Date.now(), // Simple ID generation
+    type: taskType,
+    originalId: taskId,
+    name: taskName,
+    completed: false,
+    addedAt: new Date().toISOString()
+  };
+  
+  indexData.todayList.push(newTodayItem);
+  fs.writeFileSync(INDEX_FILE, JSON.stringify(indexData, null, 2));
+  res.json({ status: 'ok', item: newTodayItem });
 });
 
 app.get('/api/finance-export', (req, res) => {

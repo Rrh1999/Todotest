@@ -680,6 +680,9 @@ let pendingSave = false;
 let saveTimeout = null;
 let fileMonitoringInterval = null;
 let lastFileHash = null;
+// Prevent saves before data is successfully loaded from server
+let dataLoadedFlag = false;
+let lastLoadedAt = null;
 
 function logAuditEvent(action, taskType, taskData, additionalInfo = '') {
   const timestamp = new Date().toISOString();
@@ -791,6 +794,11 @@ function stopFileMonitoring() {
 }
 
 async function saveData() {
+  // Skip save if data not yet loaded (prevents wiping server with empty arrays on transient load failures)
+  if (!dataLoadedFlag) {
+    console.warn('⏭️ saveData skipped: data not yet loaded');
+    return;
+  }
   // Debounce rapid save calls - if called again within 500ms, reset the timer
   if (saveTimeout) {
     clearTimeout(saveTimeout);
@@ -922,6 +930,9 @@ async function loadData() {
     if (bigTasks.length > 0) {
       console.log('Big tasks loaded:', bigTasks.map(t => ({id: t.id, name: t.name, status: t.status})));
     }
+  // Mark load as successful
+  dataLoadedFlag = true;
+  lastLoadedAt = Date.now();
   } catch (e) {
     console.error('Failed to load data', e);
   }
@@ -1438,6 +1449,14 @@ function taskCell(task) {
   // Right: icons
   const actionsDiv = document.createElement('div');
   actionsDiv.className = 'task-actions';
+  // Add to Today button
+  const addTodayBtn = document.createElement('button');
+  addTodayBtn.innerHTML = '<svg width="30" height="30" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" fill="#B5A89A"/><path d="M10 6v8M6 10h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>';
+  addTodayBtn.title = 'Add to Today';
+  addTodayBtn.style.background = 'none';
+  addTodayBtn.style.border = 'none';
+  addTodayBtn.style.cursor = 'pointer';
+  addTodayBtn.onclick = () => addTaskToToday('weekly', task.id, task.name);
   // Archive icon
   const archiveBtn = document.createElement('button');
   archiveBtn.innerHTML = '<svg width="30" height="30" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="4" width="14" height="3" rx="2" fill="#B5A89A"/><rect x="5" y="8" width="10" height="8" rx="2" fill="#C7BBB4"/><rect x="8" y="11" width="4" height="2" rx="1" fill="#2B2C29"/></svg>';
@@ -1454,6 +1473,7 @@ function taskCell(task) {
   deleteBtn.style.border = 'none';
   deleteBtn.style.cursor = 'pointer';
   deleteBtn.onclick = () => confirmDeleteTask(task.id, task.name);
+  actionsDiv.appendChild(addTodayBtn);
   actionsDiv.appendChild(archiveBtn);
   actionsDiv.appendChild(deleteBtn);
   cell.appendChild(detailsDiv);
@@ -1506,6 +1526,26 @@ function deleteTask(id) {
     renderWeekly();
     renderDeleted();
     renderArchived();
+  }
+}
+
+async function addTaskToToday(taskType, taskId, taskName) {
+  // Add task to today list via API
+  try {
+    const response = await fetch('/api/add-to-today', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taskType, taskId, taskName })
+    });
+    
+    if (response.ok) {
+      alert(`"${taskName}" added to Today list!`);
+    } else {
+      alert('Failed to add task to Today list');
+    }
+  } catch (error) {
+    console.error('Error adding task to Today:', error);
+    alert('Error adding task to Today list');
   }
 }
 
@@ -1569,16 +1609,26 @@ function renderOneOff() {
     tr.appendChild(taskCell);
     tr.innerHTML += `<td>${t.dueDate?formatUK(t.dueDate):''}</td>`;
     
-    const td = document.createElement('td');
-    td.style.display = 'grid';
-    td.style.gridTemplateColumns = '1fr 1fr';
-    td.style.gridTemplateRows = '1fr 1fr';
-    td.style.gap = '0.2rem';
-    td.style.padding = '0.5rem';
-    td.style.alignItems = 'center';
-    td.style.justifyItems = 'center';
-    td.style.height = 'auto';
-    td.style.minHeight = '60px';
+  const td = document.createElement('td');
+  td.style.display = 'grid';
+  td.style.gridTemplateColumns = 'repeat(3, 1fr)';
+  td.style.gap = '0.2rem';
+  td.style.padding = '0.5rem';
+  td.style.alignItems = 'center';
+  td.style.justifyItems = 'center';
+  td.style.height = 'auto';
+  td.style.minHeight = '60px';
+  td.style.minWidth = '180px';
+
+  // Add to Today button (purple +)
+  const addTodayBtn = document.createElement('button');
+  addTodayBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" fill="#B5A89A"/><path d="M10 6v8M6 10h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>';
+  addTodayBtn.title = 'Add to Today';
+  addTodayBtn.style.background = 'none';
+  addTodayBtn.style.border = 'none';
+  addTodayBtn.style.cursor = 'pointer';
+  addTodayBtn.style.padding = '2px';
+  addTodayBtn.onclick = () => addTaskToToday('oneoff', t.id, t.name);
     
     // Complete button with tick icon
     const comp = document.createElement('button');
@@ -1620,7 +1670,8 @@ function renderOneOff() {
     del.style.padding = '2px';
     del.onclick = () => confirmDeleteOneOff(t.id, t.name);
     
-    td.appendChild(comp);
+  td.appendChild(addTodayBtn);
+  td.appendChild(comp);
     td.appendChild(edit);
     td.appendChild(closeB);
     td.appendChild(del);
@@ -1718,7 +1769,7 @@ function renderStretch() {
   const table = document.createElement('table');
   table.className = 'task-table';
   const head = document.createElement('tr');
-  head.innerHTML = '<th>Task</th><th>Last Done</th><th>Action</th>';
+  head.innerHTML = '<th>Task</th><th>Last Done</th><th style="min-width:200px;">Action</th>';
   table.appendChild(head);
   open.forEach(t => {
     const tr = document.createElement('tr');
@@ -1742,16 +1793,26 @@ function renderStretch() {
     tr.appendChild(taskCell);
     tr.innerHTML += `<td>${last}</td>`;
     
-    const td = document.createElement('td');
-    td.style.display = 'grid';
-    td.style.gridTemplateColumns = '1fr 1fr';
-    td.style.gridTemplateRows = '1fr 1fr';
-    td.style.gap = '0.2rem';
-    td.style.padding = '0.5rem';
-    td.style.alignItems = 'center';
-    td.style.justifyItems = 'center';
-    td.style.height = 'auto';
-    td.style.minHeight = '60px';
+  const td = document.createElement('td');
+  td.style.display = 'grid';
+  td.style.gridTemplateColumns = 'repeat(3, 1fr)';
+  td.style.gap = '0.2rem';
+  td.style.padding = '0.5rem';
+  td.style.alignItems = 'center';
+  td.style.justifyItems = 'center';
+  td.style.height = 'auto';
+  td.style.minHeight = '60px';
+  td.style.minWidth = '200px';
+
+  // Add to Today button (purple +)
+  const addTodayBtn = document.createElement('button');
+  addTodayBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" fill="#B5A89A"/><path d="M10 6v8M6 10h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>';
+  addTodayBtn.title = 'Add to Today';
+  addTodayBtn.style.background = 'none';
+  addTodayBtn.style.border = 'none';
+  addTodayBtn.style.cursor = 'pointer';
+  addTodayBtn.style.padding = '2px';
+  addTodayBtn.onclick = () => addTaskToToday('stretch', t.id, t.name);
     
     // Log button with tick icon (same as complete)
     const log = document.createElement('button');
@@ -1793,7 +1854,8 @@ function renderStretch() {
     del.style.padding = '2px';
     del.onclick = () => confirmDeleteStretch(t.id, t.name);
     
-    td.appendChild(log);
+  td.appendChild(addTodayBtn);
+  td.appendChild(log);
     td.appendChild(edit);
     td.appendChild(archive);
     td.appendChild(del);
@@ -1907,7 +1969,7 @@ function renderBig() {
   const table = document.createElement('table');
   table.className = 'task-table';
   const head = document.createElement('tr');
-  head.innerHTML = '<th>Task</th><th>Due</th><th>Action</th>';
+  head.innerHTML = '<th>Task</th><th>Due</th><th style="min-width:200px;">Action</th>';
   table.appendChild(head);
   open.forEach(t => {
     const tr = document.createElement('tr');
@@ -1930,18 +1992,28 @@ function renderBig() {
     tr.appendChild(taskCell);
     tr.innerHTML += `<td>${t.dueDate?formatUK(t.dueDate):''}</td>`;
     
-    const td = document.createElement('td');
-    td.style.display = 'grid';
-    td.style.gridTemplateColumns = '1fr 1fr';
-    td.style.gridTemplateRows = '1fr 1fr';
-    td.style.gap = '0.2rem';
-    td.style.padding = '0.5rem';
-    td.style.alignItems = 'center';
-    td.style.justifyItems = 'center';
-    td.style.height = 'auto';
-    td.style.minHeight = '60px';
+  const td = document.createElement('td');
+  td.style.display = 'grid';
+  td.style.gridTemplateColumns = 'repeat(3, 1fr)';
+  td.style.gap = '0.2rem';
+  td.style.padding = '0.5rem';
+  td.style.alignItems = 'center';
+  td.style.justifyItems = 'center';
+  td.style.height = 'auto';
+  td.style.minHeight = '60px';
+  td.style.minWidth = '200px';
+
+  // Add to Today button (purple +)
+  const addTodayBtn = document.createElement('button');
+  addTodayBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" fill="#B5A89A"/><path d="M10 6v8M6 10h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>';
+  addTodayBtn.title = 'Add to Today';
+  addTodayBtn.style.background = 'none';
+  addTodayBtn.style.border = 'none';
+  addTodayBtn.style.cursor = 'pointer';
+  addTodayBtn.style.padding = '2px';
+  addTodayBtn.onclick = () => addTaskToToday('big', t.id, t.name);
     
-    // Complete button with tick icon
+  // Complete button with tick icon
     const comp = document.createElement('button');
     comp.innerHTML = '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" fill="#81B29A"/><path d="m6 10 2 2 6-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     comp.title = 'Complete';
@@ -1981,7 +2053,8 @@ function renderBig() {
     del.style.padding = '2px';
     del.onclick = () => confirmDeleteBig(t.id, t.name);
     
-    td.appendChild(comp);
+  td.appendChild(addTodayBtn);
+  td.appendChild(comp);
     td.appendChild(edit);
     td.appendChild(closeB);
     td.appendChild(del);
@@ -2117,7 +2190,7 @@ function renderRecurring() {
   const table = document.createElement('table');
   table.className = 'task-table';
   const head = document.createElement('tr');
-  head.innerHTML = '<th>Task</th><th>Next Due</th><th>Last Done</th><th>Over/<br>Under</th><th>Action</th>';
+  head.innerHTML = '<th>Task</th><th>Next Due</th><th>Last Done</th><th>Over/<br>Under</th><th style="min-width:200px;">Action</th>';
   table.appendChild(head);
   open.forEach(t => {
     const tr = document.createElement('tr');
@@ -2146,16 +2219,26 @@ function renderRecurring() {
     tr.appendChild(taskCell);
     tr.innerHTML += `<td>${formatUK(t.dueDate)}</td><td>${t.lastCompleted ? formatUK(t.lastCompleted) : ''}</td><td>${diffDisplay}</td>`;
     
-    const td = document.createElement('td');
-    td.style.display = 'grid';
-    td.style.gridTemplateColumns = '1fr 1fr';
-    td.style.gridTemplateRows = '1fr 1fr';
-    td.style.gap = '0.2rem';
-    td.style.padding = '0.5rem';
-    td.style.alignItems = 'center';
-    td.style.justifyItems = 'center';
-    td.style.height = 'auto';
-    td.style.minHeight = '60px';
+  const td = document.createElement('td');
+  td.style.display = 'grid';
+  td.style.gridTemplateColumns = 'repeat(3, 1fr)';
+  td.style.gap = '0.2rem';
+  td.style.padding = '0.5rem';
+  td.style.alignItems = 'center';
+  td.style.justifyItems = 'center';
+  td.style.height = 'auto';
+  td.style.minHeight = '60px';
+  td.style.minWidth = '200px';
+
+  // Add to Today button (purple +)
+  const addTodayBtn = document.createElement('button');
+  addTodayBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" fill="#B5A89A"/><path d="M10 6v8M6 10h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>';
+  addTodayBtn.title = 'Add to Today';
+  addTodayBtn.style.background = 'none';
+  addTodayBtn.style.border = 'none';
+  addTodayBtn.style.cursor = 'pointer';
+  addTodayBtn.style.padding = '2px';
+  addTodayBtn.onclick = () => addTaskToToday('recurring', t.id, t.name);
     
     // Complete button with tick icon
     const comp = document.createElement('button');
@@ -2197,7 +2280,8 @@ function renderRecurring() {
     del.style.padding = '2px';
     del.onclick = () => confirmDeleteRecurring(t.id, t.name);
     
-    td.appendChild(comp);
+  td.appendChild(addTodayBtn);
+  td.appendChild(comp);
     td.appendChild(skip);
     td.appendChild(closeB);
     td.appendChild(del);
@@ -2378,6 +2462,7 @@ function getTaskType(task) {
 async function init() {
   await loadData();
   weeklyTasks.filter(t => t.status === 'open').forEach(updateMissed);
+  // Only save if data was loaded
   await saveData();
   renderProjects();
   renderWeekly();

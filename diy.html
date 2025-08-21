@@ -1134,6 +1134,13 @@ function renderTasks(){
 
     // Actions column: Complete, Edit, Add Subtask, Delete (2x2 grid)
     const actionsCell=document.createElement('div'); actionsCell.className='task-actions';
+
+  // Add to Today (purple plus)
+  const addTodayBtn=document.createElement('button');
+  addTodayBtn.className='task-icon-btn';
+  addTodayBtn.title='Add to Today';
+  addTodayBtn.innerHTML='<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" fill="#B5A89A"/><path d="M10 6v8M6 10h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>';
+  addTodayBtn.onclick=()=>addDiyTaskToToday(t.id, t.name);
     const completeBtn=document.createElement('button');
     completeBtn.className='task-icon-btn complete'; completeBtn.title='Complete Task';
     completeBtn.innerHTML='<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" fill="#81B29A"/><path d="m6 10 2 2 6-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -1154,7 +1161,8 @@ function renderTasks(){
     delBtn.innerHTML='<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="8" width="8" height="8" rx="2" fill="#E07A5F"/><rect x="9" y="11" width="2" height="3" rx="1" fill="#fff"/><rect x="8" y="4" width="4" height="2" rx="1" fill="#2B2C29"/></svg>';
     delBtn.onclick=()=>deleteTask(t.id);
 
-    actionsCell.appendChild(completeBtn);
+  actionsCell.appendChild(addTodayBtn);
+  actionsCell.appendChild(completeBtn);
     actionsCell.appendChild(editBtn);
     actionsCell.appendChild(subBtn);
     actionsCell.appendChild(delBtn);
@@ -1197,6 +1205,25 @@ function saveCalendar(){calendarEvents=calendar.getEvents().map(ev=>({id:ev.id,t
 function deleteCalendarEvents(taskId){if(!calendar) return; calendar.getEvents().forEach(ev=>{if(ev.extendedProps.taskId===taskId) ev.remove();}); saveCalendar();}
 function showInfo(t){
   alert(`Name: ${t.name}\nProject: ${t.project}\nType: ${t.type}\nDue: ${t.dueDate||''}\nUrgent: ${t.urgent?'Yes':'No'}\nInfo: ${t.info||''}`);
+}
+
+// Add-to-Today API call for DIY tasks
+async function addDiyTaskToToday(taskId, taskName){
+  try{
+    const res = await fetch('/api/add-to-today',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ taskType: 'diy', taskId, taskName })
+    });
+    if(res.ok){
+      console.log(`Added to Today: ${taskName}`);
+    }else{
+      alert('Failed to add to Today');
+    }
+  }catch(e){
+    console.error('Error adding to Today', e);
+    alert('Error adding to Today');
+  }
 }
 
 function addBigTask(){

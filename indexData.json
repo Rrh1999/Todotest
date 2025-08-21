@@ -51,7 +51,7 @@
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-18"
+      "dateLastChecked": "2025-08-21"
     },
     {
       "id": "00000003",
@@ -74,7 +74,7 @@
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-18"
+      "dateLastChecked": "2025-08-21"
     },
     {
       "id": "00000004",
@@ -93,12 +93,13 @@
       ],
       "missedDates": [
         "2025-07-29",
-        "2025-08-05"
+        "2025-08-05",
+        "2025-08-19"
       ],
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-18"
+      "dateLastChecked": "2025-08-21"
     },
     {
       "id": "00000005",
@@ -111,7 +112,8 @@
       ],
       "completedDates": [
         "2025-07-28",
-        "2025-08-09"
+        "2025-08-09",
+        "2025-08-16"
       ],
       "missedDates": [
         "2025-08-04",
@@ -121,7 +123,7 @@
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-18"
+      "dateLastChecked": "2025-08-21"
     },
     {
       "id": "00000006",
@@ -143,7 +145,7 @@
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-18"
+      "dateLastChecked": "2025-08-21"
     },
     {
       "id": "00000007",
@@ -165,7 +167,7 @@
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-18"
+      "dateLastChecked": "2025-08-21"
     },
     {
       "id": "00000008",
@@ -178,15 +180,14 @@
       ],
       "completedDates": [
         "2025-08-02",
-        "2025-08-09"
-      ],
-      "missedDates": [
+        "2025-08-09",
         "2025-08-16"
       ],
+      "missedDates": [],
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-18"
+      "dateLastChecked": "2025-08-21"
     },
     {
       "id": "00000009",
@@ -209,7 +210,7 @@
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-18"
+      "dateLastChecked": "2025-08-21"
     },
     {
       "id": "00000012",
@@ -226,7 +227,8 @@
         "2025-07-30",
         "2025-08-03",
         "2025-08-08",
-        "2025-08-13"
+        "2025-08-13",
+        "2025-08-19"
       ],
       "missedDates": [
         "2025-08-01",
@@ -234,12 +236,13 @@
         "2025-08-06",
         "2025-08-11",
         "2025-08-15",
-        "2025-08-18"
+        "2025-08-18",
+        "2025-08-20"
       ],
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-18"
+      "dateLastChecked": "2025-08-21"
     },
     {
       "id": "00000013",
@@ -261,7 +264,7 @@
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-18"
+      "dateLastChecked": "2025-08-21"
     },
     {
       "id": "00000035",
@@ -275,7 +278,8 @@
       "completedDates": [
         "2025-07-30",
         "2025-08-11",
-        "2025-08-10"
+        "2025-08-10",
+        "2025-08-19"
       ],
       "missedDates": [
         "2025-08-04",
@@ -284,7 +288,7 @@
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-18"
+      "dateLastChecked": "2025-08-21"
     },
     {
       "id": "00000036",
@@ -304,7 +308,8 @@
         "2025-07-28",
         "2025-07-30",
         "2025-08-02",
-        "2025-08-18"
+        "2025-08-18",
+        "2025-08-17"
       ],
       "missedDates": [
         "2025-07-29",
@@ -322,12 +327,14 @@
         "2025-08-13",
         "2025-08-14",
         "2025-08-15",
-        "2025-08-17"
+        "2025-08-19",
+        "2025-08-20",
+        "2025-08-21"
       ],
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-18"
+      "dateLastChecked": "2025-08-21"
     },
     {
       "id": "00000037",
@@ -347,7 +354,8 @@
         "2025-08-02",
         "2025-08-11",
         "2025-08-10",
-        "2025-08-18"
+        "2025-08-18",
+        "2025-08-20"
       ],
       "missedDates": [
         "2025-08-01",
@@ -362,7 +370,7 @@
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-18"
+      "dateLastChecked": "2025-08-21"
     },
     {
       "id": "00000060",
@@ -384,7 +392,7 @@
       "status": "open",
       "startDate": "2025-08-02",
       "closedDate": "",
-      "dateLastChecked": "2025-08-18"
+      "dateLastChecked": "2025-08-21"
     },
     {
       "id": "00000069",
@@ -406,7 +414,7 @@
       "status": "open",
       "startDate": "2025-08-03",
       "closedDate": "",
-      "dateLastChecked": "2025-08-18"
+      "dateLastChecked": "2025-08-21"
     },
     {
       "id": "00000115",
@@ -419,12 +427,16 @@
         "Wed",
         "Fri"
       ],
-      "completedDates": [],
-      "missedDates": [],
+      "completedDates": [
+        "2025-08-22"
+      ],
+      "missedDates": [
+        "2025-08-20"
+      ],
       "status": "open",
       "startDate": "2025-08-18",
       "closedDate": "",
-      "dateLastChecked": "2025-08-18"
+      "dateLastChecked": "2025-08-21"
     }
   ],
   "oneOffTasks": [
@@ -513,10 +525,11 @@
       "dueDate": "2025-08-02",
       "startDate": "2025-07-28",
       "status": "closed",
-      "closedDate": "2025-08-17",
+      "closedDate": "2025-08-20",
       "taskType": "One-off",
       "completedDates": [
-        "2025-08-17"
+        "2025-08-17",
+        "2025-08-20"
       ],
       "missedDates": []
     },
@@ -650,10 +663,12 @@
       "urgency": "Medium/Low",
       "dueDate": "",
       "startDate": "2025-07-29",
-      "status": "open",
-      "closedDate": "",
+      "status": "closed",
+      "closedDate": "2025-08-19",
       "taskType": "One-off",
-      "completedDates": [],
+      "completedDates": [
+        "2025-08-19"
+      ],
       "missedDates": []
     },
     {
@@ -1075,10 +1090,11 @@
       "dueDate": "",
       "startDate": "2025-08-13",
       "status": "closed",
-      "closedDate": "2025-08-18",
+      "closedDate": "2025-08-20",
       "taskType": "One-off",
       "completedDates": [
-        "2025-08-18"
+        "2025-08-18",
+        "2025-08-20"
       ],
       "missedDates": []
     }
@@ -1090,7 +1106,7 @@
       "project": "Self Care",
       "importance": "High/Medium",
       "urgency": "High/Medium",
-      "dueDate": "2025-08-14",
+      "dueDate": "2025-08-25",
       "frequency": "daily",
       "interval": 4,
       "from": "today",
@@ -1100,11 +1116,12 @@
       "taskType": "Recurring",
       "completedDates": [
         "2025-07-29",
-        "2025-08-06"
+        "2025-08-06",
+        "2025-08-14"
       ],
       "missedDates": [],
-      "lastCompleted": "2025-08-10",
-      "lastDiff": 4
+      "lastCompleted": "2025-08-21",
+      "lastDiff": 7
     },
     {
       "id": "00000026",
@@ -1206,49 +1223,8 @@
       "lastDiff": 0
     }
   ],
-  "stretchTasks": [
-    {
-      "id": "00000116",
-      "name": "Gym",
-      "project": "Self Care",
-      "importance": "Medium",
-      "urgency": "Medium",
-      "completedDates": [
-        "2025-08-18"
-      ],
-      "status": "open"
-    }
-  ],
-  "bigTasks": [
-    {
-      "id": "00000111",
-      "name": "gulab jamun",
-      "project": "Finance",
-      "importance": "High",
-      "urgency": "High",
-      "dueDate": "",
-      "startDate": "2025-08-17",
-      "status": "open",
-      "closedDate": "",
-      "taskType": "Big",
-      "completedDates": [],
-      "missedDates": []
-    },
-    {
-      "id": "00000112",
-      "name": "Meta analysis",
-      "project": "Chores",
-      "importance": "High",
-      "urgency": "High",
-      "dueDate": "",
-      "startDate": "2025-08-17",
-      "status": "open",
-      "closedDate": "",
-      "taskType": "Big",
-      "completedDates": [],
-      "missedDates": []
-    }
-  ],
+  "stretchTasks": [],
+  "bigTasks": [],
   "deletedTasks": [
     {
       "id": "00000001",
@@ -1421,6 +1397,22 @@
       "cost": "",
       "month": "",
       "bought": false
+    },
+    {
+      "id": "00000118",
+      "name": "Fiacra Daddys Day Gift",
+      "project": "Social",
+      "cost": "15",
+      "month": "2025-08",
+      "bought": false
+    },
+    {
+      "id": "00000119",
+      "name": "Shivani Bday Gift (nails)",
+      "project": "Social",
+      "cost": "15",
+      "month": "2025-08",
+      "bought": false
     }
   ],
   "longTermList": [
@@ -1460,89 +1452,15 @@
       "bought": true
     },
     {
-      "id": "00000103",
-      "name": "test",
+      "id": "00000117",
+      "name": "Tooth brush for Kari",
       "bought": false
     }
   ],
   "todayList": [
     {
       "type": "work",
-      "id": "00000060"
-    },
-    {
-      "type": "work",
-      "id": "00000057"
-    },
-    {
-      "type": "oneoff",
-      "id": "00000076"
-    },
-    {
-      "type": "work",
-      "id": "00000027"
-    },
-    {
-      "type": "work",
-      "id": "00000049"
-    },
-    {
-      "type": "work",
-      "id": "00000020"
-    },
-    {
-      "type": "work",
-      "id": "00000042"
-    },
-    {
-      "type": "work",
-      "id": "00000052"
-    },
-    {
-      "type": "work",
-      "id": "00000051"
-    },
-    {
-      "type": "weekly",
-      "id": "00000003"
-    },
-    {
-      "type": "work",
-      "id": "00000022"
-    },
-    {
-      "type": "work",
-      "id": "00000040"
-    },
-    {
-      "type": "work",
-      "id": "00000025"
-    },
-    {
-      "type": "oneoff",
-      "id": "00000018"
-    },
-    {
-      "type": "oneoff",
-      "id": "00000016"
-    },
-    {
-      "type": "oneoff",
-      "id": "00000109"
-    },
-    {
-      "type": "recurring",
-      "id": "00000025"
-    },
-    {
-      "type": "weekly",
-      "id": "00000035"
-    },
-    {
-      "type": "quick",
-      "id": 114,
-      "name": "Email John and Stephane",
-      "added": "2025-08-18"
+      "id": "00000068"
     },
     {
       "type": "work",
@@ -1550,9 +1468,25 @@
     },
     {
       "type": "work",
-      "id": "00000064"
+      "id": "00000062"
+    },
+    {
+      "type": "oneoff",
+      "id": "00000076"
+    },
+    {
+      "type": "work",
+      "id": "00000070"
+    },
+    {
+      "type": "work",
+      "id": "00000069"
+    },
+    {
+      "type": "work",
+      "id": "00000020"
     }
   ],
-  "nextId": 117,
+  "nextId": 120,
   "todayQuickHistory": []
 }
