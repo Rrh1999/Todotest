@@ -17,16 +17,49 @@
     .task-table th { background:#C7BBB4; color:#2B2C29; }
     .color-swatch { display:inline-block; width:18px; height:18px; border-radius:50%; border:1px solid #999; vertical-align:middle; margin-right:6px; }
 
+    /* Match Index page banner (toggle) look */
+    .toggle {
+      cursor: pointer;
+      background: #C7BBB4;
+      padding: 0.5rem;
+      border-radius: 4px;
+      margin: 1rem 0;
+      text-align: center;
+    }
+
     .add-toggle { background:#2B2C29; color:#C7BBB4; font-size:0.8rem; padding:0.5rem; transition:all 0.2s ease; }
     .add-toggle:hover { background:#C7BBB4; color:#2B2C29; box-shadow:0 0 12px 2px #2B2C29; }
     .form-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:1rem; align-items:center; }
     .form-grid label { display:flex; flex-direction:column; font-size:0.9rem; font-weight:bold; }
     .form-grid input, .form-grid select { width:100%; font-size:1rem; padding:0.4rem; margin-top:0.3rem; box-sizing:border-box; font-weight:normal; }
     .subtoggle { font-size:0.9rem; margin-top:0.5rem; }
-    .section-header { position:relative; }
+    /* Match Index page section header typography */
+    .section-header { position:relative; font-size:1.2rem; font-weight:bold; text-align:center; }
     .section-header .pin-star { position:absolute; top:50%; right:8px; transform:translateY(-50%); cursor:pointer; z-index:10; }
     .section-header .pin-star svg { width:16px; height:16px; }
     .section-header .pin-star.pinned svg { fill:#F7F6F3; stroke:#2B2C29; stroke-width:1; }
+
+    /* Match Index page submit button styling */
+    .submit-btn {
+      background: #C7BBB4;
+      color: #2B2C29;
+      border: none;
+      border-radius: 12px;
+      padding: 0.7rem 1.5rem;
+      font-size: 1rem;
+      font-weight: bold;
+      box-shadow: 0 1px 2px rgba(44,44,44,0.04);
+      transition: box-shadow 0.18s, background 0.18s, color 0.18s;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .submit-btn:hover {
+      box-shadow: 0 0 12px 2px #2B2C29;
+      background: #B5A89A;
+      color: #E7E4D6;
+    }
   </style>
 </head>
 <body>
@@ -51,6 +84,9 @@
       <div id="addActivityForm" class="hidden subtoggle form-grid">
         <label>Name<input type="text" id="activityName"></label>
         <label>Skill<select id="activitySkill"></select></label>
+        <label style="grid-column:1/-1;">Info
+          <textarea id="activityInfo" rows="3" placeholder="Notes, goals, resources, etc." style="width:100%;"></textarea>
+        </label>
         <div style="grid-column:1/-1;text-align:center;">
           <button class="submit-btn" onclick="addActivity()">Submit</button>
         </div>
@@ -102,10 +138,31 @@
     </div>
   </div>
 
+  <!-- Activity Info Modal -->
+  <div id="activityInfoModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Activity Info</h3>
+        <span class="close" onclick="closeActivityInfoModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div id="activityInfoName" style="font-weight:600; margin-bottom:0.5rem;"></div>
+        <label style="width:100%; display:block;">
+          <span style="display:block; font-weight:500; margin-bottom:0.25rem;">Details</span>
+          <textarea id="editActivityInfo" rows="6" style="width:100%;"></textarea>
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button class="cancel-btn" onclick="closeActivityInfoModal()">Close</button>
+        <button class="submit-btn" onclick="saveActivityInfo()">Save</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     function toggle(id){ const el=document.getElementById(id); if(el) el.classList.toggle('hidden'); }
 
-    let skills=[]; let activities=[]; let nextSkillId=1; let nextActivityId=1; let editingSkillId=null;
+  let skills=[]; let activities=[]; let nextSkillId=1; let nextActivityId=1; let editingSkillId=null; let editingActivityInfoId=null;
 
     async function loadParenting(){
       try {
@@ -224,10 +281,12 @@
     function addActivity(){
       const name=(document.getElementById('activityName').value||'').trim();
       const skillId=Number(document.getElementById('activitySkill').value);
+  const info=(document.getElementById('activityInfo').value||'').trim();
       if(!name||!skillId) return;
-      const act={id:String(nextActivityId++).padStart(8,'0'),name,skillId,completedDates:[],status:'open',dueDate:''};
+  const act={id:String(nextActivityId++).padStart(8,'0'),name,skillId,info,completedDates:[],status:'open',dueDate:''};
       activities.push(act);
       document.getElementById('activityName').value='';
+  document.getElementById('activityInfo').value='';
       renderActivities();
       saveParenting();
     }
@@ -248,10 +307,18 @@
         const last=a.completedDates.length?formatUK(a.completedDates[a.completedDates.length-1]):'';
         const freq=countLastMonth(a.completedDates);
 
-        const taskCell=document.createElement('td');
-        const nameDiv=document.createElement('div');nameDiv.textContent=a.name;nameDiv.style.fontWeight='500';
-        const skillDiv=document.createElement('div');skillDiv.textContent=skill?skill.name:'';skillDiv.style.color=color;skillDiv.style.fontSize='0.8rem';skillDiv.style.marginTop='0.2rem';
-        taskCell.appendChild(nameDiv);taskCell.appendChild(skillDiv);
+  const taskCell=document.createElement('td');
+  const nameDiv=document.createElement('div');nameDiv.textContent=a.name;nameDiv.style.fontWeight='500';
+  const infoRow=document.createElement('div'); infoRow.style.marginTop='0.2rem';
+  const infoBtn=document.createElement('button');
+  infoBtn.title='View/Edit Info'; infoBtn.style.background='none'; infoBtn.style.border='none'; infoBtn.style.cursor='pointer'; infoBtn.style.padding='0';
+  infoBtn.innerHTML='<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" fill="#C7BBB4"/><rect x="9" y="8" width="2" height="6" rx="1" fill="#2B2C29"/><rect x="9" y="5" width="2" height="2" rx="1" fill="#2B2C29"/></svg>';
+  infoBtn.onclick=()=>openActivityInfoModal(a.id);
+  infoRow.appendChild(infoBtn);
+  const skillDiv=document.createElement('div');skillDiv.textContent=skill?skill.name:'';skillDiv.style.color=color;skillDiv.style.fontSize='0.8rem';skillDiv.style.marginTop='0.2rem';
+  taskCell.appendChild(nameDiv);
+  taskCell.appendChild(infoRow);
+  taskCell.appendChild(skillDiv);
         tr.appendChild(taskCell);
 
         const lastTd=document.createElement('td');lastTd.textContent=last;tr.appendChild(lastTd);
@@ -294,6 +361,28 @@
         table.appendChild(tr);
       });
       container.appendChild(table);
+    }
+
+    function openActivityInfoModal(id){
+      const act=activities.find(a=>a.id===id); if(!act) return;
+      editingActivityInfoId=id;
+      document.getElementById('activityInfoName').textContent = act.name || '';
+      document.getElementById('editActivityInfo').value = act.info || '';
+      document.getElementById('activityInfoModal').classList.remove('hidden');
+    }
+
+    function closeActivityInfoModal(){
+      document.getElementById('activityInfoModal').classList.add('hidden');
+      editingActivityInfoId=null;
+    }
+
+    function saveActivityInfo(){
+      if(!editingActivityInfoId) return;
+      const act=activities.find(a=>a.id===editingActivityInfoId); if(!act) return;
+      act.info = document.getElementById('editActivityInfo').value;
+      saveParenting();
+      closeActivityInfoModal();
+      renderActivities();
     }
 
     function logActivity(id){
@@ -348,4 +437,3 @@
   </script>
 </body>
 </html>
-

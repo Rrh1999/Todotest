@@ -43,7 +43,8 @@
       ],
       "completedDates": [
         "2025-08-03",
-        "2025-08-10"
+        "2025-08-10",
+        "2025-08-20"
       ],
       "missedDates": [
         "2025-08-17"
@@ -51,7 +52,7 @@
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-21"
+      "dateLastChecked": "2025-08-22"
     },
     {
       "id": "00000003",
@@ -74,7 +75,7 @@
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-21"
+      "dateLastChecked": "2025-08-22"
     },
     {
       "id": "00000004",
@@ -99,7 +100,7 @@
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-21"
+      "dateLastChecked": "2025-08-22"
     },
     {
       "id": "00000005",
@@ -123,7 +124,7 @@
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-21"
+      "dateLastChecked": "2025-08-22"
     },
     {
       "id": "00000006",
@@ -145,7 +146,7 @@
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-21"
+      "dateLastChecked": "2025-08-22"
     },
     {
       "id": "00000007",
@@ -167,7 +168,7 @@
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-21"
+      "dateLastChecked": "2025-08-22"
     },
     {
       "id": "00000008",
@@ -187,7 +188,7 @@
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-21"
+      "dateLastChecked": "2025-08-22"
     },
     {
       "id": "00000009",
@@ -210,7 +211,7 @@
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-21"
+      "dateLastChecked": "2025-08-22"
     },
     {
       "id": "00000012",
@@ -228,7 +229,8 @@
         "2025-08-03",
         "2025-08-08",
         "2025-08-13",
-        "2025-08-19"
+        "2025-08-19",
+        "2025-08-22"
       ],
       "missedDates": [
         "2025-08-01",
@@ -242,7 +244,7 @@
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-21"
+      "dateLastChecked": "2025-08-22"
     },
     {
       "id": "00000013",
@@ -264,7 +266,7 @@
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-21"
+      "dateLastChecked": "2025-08-22"
     },
     {
       "id": "00000035",
@@ -288,7 +290,7 @@
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-21"
+      "dateLastChecked": "2025-08-22"
     },
     {
       "id": "00000036",
@@ -329,12 +331,13 @@
         "2025-08-15",
         "2025-08-19",
         "2025-08-20",
-        "2025-08-21"
+        "2025-08-21",
+        "2025-08-22"
       ],
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-21"
+      "dateLastChecked": "2025-08-22"
     },
     {
       "id": "00000037",
@@ -365,12 +368,13 @@
         "2025-08-09",
         "2025-08-13",
         "2025-08-15",
-        "2025-08-16"
+        "2025-08-16",
+        "2025-08-22"
       ],
       "status": "open",
       "startDate": "2025-07-28",
       "closedDate": "",
-      "dateLastChecked": "2025-08-21"
+      "dateLastChecked": "2025-08-22"
     },
     {
       "id": "00000060",
@@ -392,7 +396,7 @@
       "status": "open",
       "startDate": "2025-08-02",
       "closedDate": "",
-      "dateLastChecked": "2025-08-21"
+      "dateLastChecked": "2025-08-22"
     },
     {
       "id": "00000069",
@@ -414,7 +418,7 @@
       "status": "open",
       "startDate": "2025-08-03",
       "closedDate": "",
-      "dateLastChecked": "2025-08-21"
+      "dateLastChecked": "2025-08-22"
     },
     {
       "id": "00000115",
@@ -428,15 +432,15 @@
         "Fri"
       ],
       "completedDates": [
-        "2025-08-22"
+        "2025-08-20"
       ],
       "missedDates": [
-        "2025-08-20"
+        "2025-08-22"
       ],
       "status": "open",
       "startDate": "2025-08-18",
       "closedDate": "",
-      "dateLastChecked": "2025-08-21"
+      "dateLastChecked": "2025-08-22"
     }
   ],
   "oneOffTasks": [
@@ -1031,10 +1035,12 @@
       "urgency": "High",
       "dueDate": "",
       "startDate": "2025-08-10",
-      "status": "open",
-      "closedDate": "",
+      "status": "closed",
+      "closedDate": "2025-08-22",
       "taskType": "One-off",
-      "completedDates": [],
+      "completedDates": [
+        "2025-08-22"
+      ],
       "missedDates": []
     },
     {
@@ -1223,7 +1229,20 @@
       "lastDiff": 0
     }
   ],
-  "stretchTasks": [],
+  "stretchTasks": [
+    {
+      "id": "00000120",
+      "name": "gym",
+      "project": "Self Care",
+      "importance": "High",
+      "urgency": "High",
+      "completedDates": [
+        "2025-08-21",
+        "2025-08-22"
+      ],
+      "status": "open"
+    }
+  ],
   "bigTasks": [],
   "deletedTasks": [
     {
@@ -1459,34 +1478,42 @@
   ],
   "todayList": [
     {
-      "type": "work",
-      "id": "00000068"
-    },
-    {
-      "type": "work",
-      "id": "00000063"
-    },
-    {
-      "type": "work",
-      "id": "00000062"
-    },
-    {
       "type": "oneoff",
       "id": "00000076"
     },
     {
       "type": "work",
-      "id": "00000070"
-    },
-    {
-      "type": "work",
-      "id": "00000069"
-    },
-    {
-      "type": "work",
       "id": "00000020"
+    },
+    {
+      "type": "weekly",
+      "id": "00000003"
+    },
+    {
+      "type": "weekly",
+      "id": "00000005"
+    },
+    {
+      "type": "weekly",
+      "id": "00000037"
+    },
+    {
+      "type": "weekly",
+      "id": "00000115"
+    },
+    {
+      "type": "oneoff",
+      "id": "00000087"
+    },
+    {
+      "type": "oneoff",
+      "id": "00000090"
+    },
+    {
+      "type": "recurring",
+      "id": "00000034"
     }
   ],
-  "nextId": 120,
-  "todayQuickHistory": []
+  "todayQuickHistory": [],
+  "nextId": 121
 }

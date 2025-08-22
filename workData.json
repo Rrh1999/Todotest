@@ -337,7 +337,7 @@
       "frequency": null,
       "interval": null,
       "from": null,
-      "status": "open",
+      "status": "closed",
       "subtasks": [],
       "notes": ""
     },
@@ -353,7 +353,7 @@
       "frequency": null,
       "interval": null,
       "from": null,
-      "status": "open",
+      "status": "closed",
       "subtasks": [],
       "notes": ""
     },
@@ -362,6 +362,38 @@
       "parent": null,
       "name": "Contact disability support services",
       "project": "PhD Admin",
+      "dueDate": "",
+      "importance": "High",
+      "urgency": "High",
+      "recurring": false,
+      "frequency": null,
+      "interval": null,
+      "from": null,
+      "status": "closed",
+      "subtasks": [],
+      "notes": ""
+    },
+    {
+      "id": "00000070",
+      "parent": null,
+      "name": "Plan the calender Month",
+      "project": "PhD Admin",
+      "dueDate": "",
+      "importance": "High",
+      "urgency": "High",
+      "recurring": false,
+      "frequency": null,
+      "interval": null,
+      "from": null,
+      "status": "closed",
+      "subtasks": [],
+      "notes": ""
+    },
+    {
+      "id": "00000071",
+      "parent": null,
+      "name": "Daniel book the scan after 1  get volunteer",
+      "project": "PD & MRS",
       "dueDate": "",
       "importance": "High",
       "urgency": "High",
@@ -953,10 +985,10 @@
       "notes": ""
     },
     {
-      "id": "00000070",
+      "id": "00000072",
       "parent": null,
-      "name": "Plan the calender Month",
-      "project": "PhD Admin",
+      "name": "Read the chbh oplr part c and operating rules",
+      "project": "MRI Training",
       "dueDate": "",
       "importance": "High",
       "urgency": "High",
@@ -969,7 +1001,7 @@
       "notes": ""
     }
   ],
-  "workNextId": 71,
+  "workNextId": 73,
   "maxSubDepth": 7,
   "calendarEvents": [
     {
@@ -1013,9 +1045,93 @@
       "start": "2025-07-29",
       "end": "",
       "taskId": "00000046"
+    },
+    {
+      "id": "124",
+      "title": "Introduction Write Up",
+      "start": "2025-08-21",
+      "end": "",
+      "taskId": "00000020"
+    },
+    {
+      "id": "125",
+      "title": "Introduction Write Up",
+      "start": "2025-08-22",
+      "end": "",
+      "taskId": "00000020"
+    },
+    {
+      "id": "126",
+      "title": "Introduction Write Up",
+      "start": "2025-08-23",
+      "end": "",
+      "taskId": "00000020"
+    },
+    {
+      "id": "127",
+      "title": "Introduction Write Up",
+      "start": "2025-08-25",
+      "end": "",
+      "taskId": "00000020"
+    },
+    {
+      "id": "128",
+      "title": "Introduction Write Up",
+      "start": "2025-08-26",
+      "end": "",
+      "taskId": "00000020"
+    },
+    {
+      "id": "129",
+      "title": "Methods Write up",
+      "start": "2025-08-27",
+      "end": "",
+      "taskId": "00000021"
+    },
+    {
+      "id": "130",
+      "title": "Methods Write up",
+      "start": "2025-08-28",
+      "end": "",
+      "taskId": "00000021"
+    },
+    {
+      "id": "131",
+      "title": "Introduction Write Up",
+      "start": "2025-08-29",
+      "end": "",
+      "taskId": "00000020"
+    },
+    {
+      "id": "132",
+      "title": "Introduction Write Up",
+      "start": "2025-08-30",
+      "end": "",
+      "taskId": "00000020"
+    },
+    {
+      "id": "133",
+      "title": "Shorten the introduction",
+      "start": "2025-09-01",
+      "end": "",
+      "taskId": "00000010"
+    },
+    {
+      "id": "134",
+      "title": "Shorten the introduction",
+      "start": "2025-09-02",
+      "end": "",
+      "taskId": "00000010"
+    },
+    {
+      "id": "135",
+      "title": "Shorten the introduction",
+      "start": "2025-09-03",
+      "end": "",
+      "taskId": "00000010"
     }
   ],
-  "calendarNextId": 124,
+  "calendarNextId": 136,
   "meetings": [
     {
       "id": "12",
@@ -1045,7 +1161,7 @@
       "project": "",
       "date": "",
       "attendees": "Rita & Stephane",
-      "content": "- Send reasonable adjustment plan to send AIM (send it them)\n\n\nAnnual progress review meetings (all years): between Monday 28th July and Friday 22nd August 2025; <- This is not the \n\nEmail Lei <- 9 month review\n\nGSR3 Reply <- Let her know my supervisor is aware at the moment, and I will submit when he's back\n\n- thank you for providing information, and your time, we will see if we can include it, we have very specific inclusion criteria\n\n- Merve ÇIKILI UYTUN  <- thank you we will include your data inthe portion where we can include. \n\n- Torodov see how many % subset they did, and jules do that\n\n- let noemi and ellie if they have any q's on impulsivity\n\n- make sure im helping with recruitment \n\n- The focus of my PhD and different chapters. \n\n- out of office reply, \n\n- 26th August 2025, Stephane will be back\n\nNew items:\n\nlets go through the goal posts",
+      "content": "- Send reasonable adjustment plan to send AIM (send it them)\n\n\nAnnual progress review meetings (all years): between Monday 28th July and Friday 22nd August 2025; <- This is not the \n\nEmail Lei <- 9 month review\n\nGSR3 Reply <- Let her know my supervisor is aware at the moment, and I will submit when he's back\n\n- thank you for providing information, and your time, we will see if we can include it, we have very specific inclusion criteria\n\n- Merve ÇIKILI UYTUN  <- thank you we will include your data inthe portion where we can include. \n\n- Torodov see how many % subset they did, and jules do that\n\n- let noemi and ellie if they have any q's on impulsivity\n\n- make sure im helping with recruitment \n\n- The focus of my PhD and different chapters. \n\n- out of office reply, \n\n- 26th August 2025, Stephane will be back\n\nNew items:\n\nlets go through the goal posts\nMaltreatment rushkin\n",
       "outcomes": "",
       "attachments": [],
       "followupOf": "12"
