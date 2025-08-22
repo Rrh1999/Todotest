@@ -64,6 +64,7 @@ header h1 { font-size:clamp(3.9rem, 6vw, 6rem); background:none; color:var(--col
   border-radius:var(--radius-sm);
   margin-bottom:0.5rem;
   box-shadow:0 1px 2px rgba(44,44,44,0.04);
+  text-align:center;
 }
 .toggle {
   padding:0.5rem;
@@ -81,11 +82,47 @@ header h1 { font-size:clamp(3.9rem, 6vw, 6rem); background:none; color:var(--col
   .section-header {
     font-size:1.2rem;
     padding:0.7rem 1rem;
+    position:relative;
   }
   .section-header:hover {
     background:var(--color-header-bg);
     color:var(--color-header-text);
   }
+
+/* Add-item toggle banner */
+.add-toggle {
+  background: #2B2C29;
+  color: #C7BBB4;
+  font-size: 0.8rem;
+  padding: 0.5rem;
+  transition: all 0.2s ease;
+}
+.add-toggle:hover {
+  background: #C7BBB4;
+  color: #2B2C29;
+  box-shadow: 0 0 12px 2px #2B2C29;
+}
+
+/* Pinned section star */
+.section-header .pin-star {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  cursor: pointer;
+  z-index: 10;
+}
+
+.section-header .pin-star svg {
+  width: 16px;
+  height: 16px;
+}
+
+.section-header .pin-star.pinned svg {
+  fill: #F7F6F3;
+  stroke: #2B2C29;
+  stroke-width: 1;
+}
 
 /* Buttons */
 .btn { background:var(--color-btn-bg); color:var(--color-btn-text); border:none; padding:.55rem .9rem; font:inherit; border-radius:var(--radius-pill); cursor:pointer; font-weight:500; box-shadow:0 2px 4px rgba(0,0,0,.08); transition:var(--transition); }
