@@ -110,6 +110,14 @@ function initDb() {
   financeData = loadJson(FINANCE_FILE, financeData);
   parentingData = loadJson(PARENTING_FILE, parentingData);
   soulData = loadJson(SOUL_FILE, soulData);
+  soulData.meditations = soulData.meditations || [];
+  soulData.nextMeditationId = soulData.nextMeditationId || 1;
+  soulData.journalTypes = soulData.journalTypes || [];
+  soulData.nextJournalTypeId = soulData.nextJournalTypeId || 1;
+    soulData.journals = (soulData.journals || []).map(j=>({ ...j, media: j.media || [] }));
+  soulData.nextJournalId = soulData.nextJournalId || 1;
+  soulData.mottos = soulData.mottos || [];
+  soulData.nextMottoId = soulData.nextMottoId || 1;
   financeData.pots = financeData.pots || [];
   financeData.nextPotId = financeData.nextPotId || 1;
 }
@@ -239,20 +247,27 @@ app.post('/api/parenting-data', (req, res) => {
 });
 
 // soul page data
-let soulData = {
-  projects: [],
-  nextProjectId: 1
-};
+  let soulData = {
+    meditations: [],
+    nextMeditationId: 1,
+    journalTypes: [],
+    nextJournalTypeId: 1,
+    journals: [], // each {id,title,date,type,text,media:[]}
+    nextJournalId: 1,
+    mottos: [],
+    nextMottoId: 1
+  };
 
 app.get('/api/soul-data', (req, res) => {
   res.json(soulData);
 });
 
-app.post('/api/soul-data', (req, res) => {
-  soulData = req.body;
-  fs.writeFileSync(SOUL_FILE, JSON.stringify(soulData, null, 2));
-  res.json({ status: 'ok' });
-});
+  app.post('/api/soul-data', (req, res) => {
+    soulData = req.body;
+    soulData.journals = (soulData.journals || []).map(j=>({ ...j, media: j.media || [] }));
+    fs.writeFileSync(SOUL_FILE, JSON.stringify(soulData, null, 2));
+    res.json({ status: 'ok' });
+  });
 
 app.post('/api/add-to-today', (req, res) => {
   const { taskType, taskId, taskName } = req.body;

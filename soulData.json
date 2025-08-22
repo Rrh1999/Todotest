@@ -1,4 +1,10 @@
 {
-  "projects": [],
-  "nextProjectId": 1
+  "meditations": [],
+  "nextMeditationId": 1,
+  "journalTypes": [],
+  "nextJournalTypeId": 1,
+  "journals": [],
+  "nextJournalId": 1,
+  "mottos": [],
+  "nextMottoId": 1
 }
