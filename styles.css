@@ -75,6 +75,7 @@ header h1 { font-size:clamp(3.9rem, 6vw, 6rem); background:none; color:var(--col
     background:var(--color-header-bg);
     color:var(--color-header-text);
 }
+
 .toggle.active, .toggle:active {
   background:var(--color-toggle-active);
   color:var(--color-toggle-text);
