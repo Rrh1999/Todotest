@@ -64,25 +64,14 @@ section { padding:1rem; }
     </span>
   </div>
   <div id="journalSection" class="hidden">
-    <div class="toggle add-toggle" onclick="toggle('addJournalForm')">Add Journal</div>
-    <div id="addJournalForm" class="hidden subtoggle">
-      <div class="form-grid">
-        <label>Title<input type="text" id="journalTitle"></label>
-        <label>Date<input type="date" id="journalDate"></label>
-        <label>Type<select id="journalTypeSelect"></select></label>
-        <label>Text<textarea id="journalText"></textarea></label>
-        <label>Media<input type="file" id="journalMedia" accept="image/*,video/*,audio/*" multiple></label>
-        <div style="grid-column:1/-1;text-align:center;">
-          <button class="submit-btn" onclick="addJournal()">Submit</button>
-        </div>
-      </div>
-      <div class="toggle add-toggle subtoggle" onclick="toggle('addJournalTypeForm')">Add Journal Entry Type</div>
-      <div id="addJournalTypeForm" class="hidden subtoggle form-grid">
-        <label>Name<input type="text" id="journalTypeName"></label>
-        <label>Colour<input type="color" id="journalTypeColor" value="#81B29A"></label>
-        <div style="grid-column:1/-1;text-align:center;">
-          <button class="submit-btn" onclick="addJournalType()">Add Type</button>
-        </div>
+    <div id="addJournalForm" class="form-grid">
+      <label>Title<input type="text" id="journalTitle"></label>
+      <label>Date<input type="date" id="journalDate"></label>
+      <label>Type<select id="journalTypeSelect"></select></label>
+      <label>Text<textarea id="journalText"></textarea></label>
+      <label>Media<input type="file" id="journalMedia" accept="image/*,video/*,audio/*" multiple></label>
+      <div style="grid-column:1/-1;text-align:center;">
+        <button class="submit-btn" onclick="addJournal()">Submit</button>
       </div>
     </div>
     <div class="filter-grid">
@@ -91,6 +80,14 @@ section { padding:1rem; }
       <label>End Date<input type="date" id="filterJournalEnd"></label>
       <label>Type<select id="filterJournalType"></select></label>
       <div style="grid-column:1/-1;text-align:right;"><button class="filter-apply-btn" onclick="renderJournals()">Apply Filters</button></div>
+    </div>
+    <div class="toggle add-toggle" onclick="toggle('addJournalTypeForm')">Add Journal Entry Type</div>
+    <div id="addJournalTypeForm" class="hidden subtoggle form-grid">
+      <label>Name<input type="text" id="journalTypeName"></label>
+      <label>Colour<input type="color" id="journalTypeColor" value="#81B29A"></label>
+      <div style="grid-column:1/-1;text-align:center;">
+        <button class="submit-btn" onclick="addJournalType()">Add Type</button>
+      </div>
     </div>
     <div id="journalList" class="item-grid"></div>
   </div>

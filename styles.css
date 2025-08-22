@@ -64,6 +64,7 @@ header h1 { font-size:clamp(3.9rem, 6vw, 6rem); background:none; color:var(--col
   border-radius:var(--radius-sm);
   margin-bottom:0.5rem;
   box-shadow:0 1px 2px rgba(44,44,44,0.04);
+  text-align:center;
 }
 .toggle {
   padding:0.5rem;
@@ -74,6 +75,7 @@ header h1 { font-size:clamp(3.9rem, 6vw, 6rem); background:none; color:var(--col
     background:var(--color-header-bg);
     color:var(--color-header-text);
 }
+
 .toggle.active, .toggle:active {
   background:var(--color-toggle-active);
   color:var(--color-toggle-text);
@@ -81,6 +83,7 @@ header h1 { font-size:clamp(3.9rem, 6vw, 6rem); background:none; color:var(--col
   .section-header {
     font-size:1.2rem;
     padding:0.7rem 1rem;
+    position:relative;
   }
   .section-header:hover {
     background:var(--color-header-bg);
