@@ -331,6 +331,7 @@
         addBtn.innerHTML='<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" fill="#B5A89A"/><path d="M10 6v8M6 10h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>';
         addBtn.title='Add to Today';addBtn.style.background='none';addBtn.style.border='none';addBtn.style.cursor='pointer';addBtn.style.padding='2px';
         addBtn.onclick=()=>addActivityToToday(a.id,a.name);
+        const timerBtn=createTimerButton('parenting', a.name);timerBtn.style.padding='2px';
 
         const logBtn=document.createElement('button');
         logBtn.innerHTML='<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" fill="#81B29A"/><path d="m6 10 2 2 6-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -353,6 +354,7 @@
         delBtn.onclick=()=>confirmDeleteActivity(a.id,a.name);
 
         td.appendChild(addBtn);
+        td.appendChild(timerBtn);
         td.appendChild(logBtn);
         td.appendChild(editBtn);
         td.appendChild(archiveBtn);
@@ -365,8 +367,15 @@
 
     function openActivityInfoModal(id){
       const act=activities.find(a=>a.id===id); if(!act) return;
-      editingActivityInfoId=id;
-      document.getElementById('activityInfoName').textContent = act.name || '';
+  editingActivityInfoId=id;
+      const nameDiv=document.getElementById('activityInfoName');
+      nameDiv.textContent = act.name || '';
+      const oldBtn=document.getElementById('activityInfoTimerBtn');
+      if(oldBtn) oldBtn.remove();
+      const timerBtn=createTimerButton('parenting', act.name);
+      timerBtn.id='activityInfoTimerBtn';
+      timerBtn.style.marginLeft='0.25rem';
+      nameDiv.appendChild(timerBtn);
       document.getElementById('editActivityInfo').value = act.info || '';
       document.getElementById('activityInfoModal').classList.remove('hidden');
     }
