@@ -299,6 +299,9 @@ section {
 .task-table tr:hover td {
   background: #E7E4D6;
 }
+.today-col {
+  background: rgba(181, 168, 154, 0.22) !important;
+}
 .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; align-items: center; }
 .form-grid label { display: flex; flex-direction: column; font-size: 0.9rem; font-weight: bold; }
 .hidden { display: none !important; }
@@ -960,6 +963,40 @@ function formatUK(date) {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: '2-digit' });
 }
 
+// UK-time helpers for weekly grid
+function getUKDayIndex(date = new Date()) {
+  try {
+    const dayShort = new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'Europe/London' }).format(date);
+    const map = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+    if (map.hasOwnProperty(dayShort)) return map[dayShort];
+  } catch (_) {}
+  // Fallback: convert JS getDay() to Mon=0..Sun=6
+  const gd = new Date(date).getDay();
+  return gd === 0 ? 6 : gd - 1;
+}
+function getUKDayName(date = new Date()) {
+  try {
+    return new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'Europe/London' }).format(date);
+  } catch (_) {
+    const idx = getUKDayIndex(date);
+    return ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][idx];
+  }
+}
+function isViewingCurrentUKWeek(weekStartDate) {
+  // Treat current week as Monday-start; compare against startOfWeek(today)
+  const todayStart = startOfWeek(new Date());
+  return formatISO(weekStartDate) === formatISO(todayStart);
+}
+function getWeekISO(start) {
+  const out = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    out.push(formatISO(d));
+  }
+  return out;
+}
+
 function countLastMonth(dates) {
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - 1);
@@ -1338,20 +1375,48 @@ function renderWeekly() {
   const headers = ['Task', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   grid.innerHTML = '';
   
+  const viewingCurrentWeek = isViewingCurrentUKWeek(currentWeekStart);
+  const todayIdxUK = getUKDayIndex(new Date()); // 0-6 (Mon..Sun)
+  const dayNames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const todayNameUK = dayNames[todayIdxUK];
+
   headers.forEach((headerText, index) => {
     const header = document.createElement('div');
     header.className = 'grid-header';
     header.textContent = headerText;
+    if (viewingCurrentWeek && headerText === todayNameUK) header.classList.add('today-col');
     grid.appendChild(header);
   });
   
-  const openTasks = weeklyTasks.filter(t => t.status === 'open');
+  let openTasks = weeklyTasks.filter(t => t.status === 'open');
   if (openTasks.length === 0) {
     const row = document.createElement('div');
     row.textContent = 'No weekly tasks';
     row.style.gridColumn = '1 / -1';
     grid.appendChild(row);
     return;
+  }
+  const weekISO = getWeekISO(currentWeekStart);
+  if (viewingCurrentWeek) {
+    const hasMissedEarlierThisWeek = (task) => {
+      for (let i = 0; i < todayIdxUK; i++) {
+        const day = dayNames[i];
+        if (task.days && task.days.includes(day)) {
+          const iso = weekISO[i];
+          if (!task.completedDates.includes(iso)) return true;
+        }
+      }
+      return false;
+    };
+    openTasks = openTasks.slice().sort((a, b) => {
+      const aDueToday = a.days && a.days.includes(todayNameUK);
+      const bDueToday = b.days && b.days.includes(todayNameUK);
+      if (aDueToday !== bDueToday) return aDueToday ? -1 : 1;
+      const aMiss = hasMissedEarlierThisWeek(a);
+      const bMiss = hasMissedEarlierThisWeek(b);
+      if (aMiss !== bMiss) return aMiss ? -1 : 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
   }
   openTasks.forEach(task => {
     updateMissed(task);
@@ -1368,6 +1433,7 @@ function renderWeekly() {
         (completed ? 'green tick' : due ? 'purple' : 'grey');
       circle.innerHTML = completed ? '&#10004;' : '';
       circle.onclick = () => toggleComplete(task.id, iso, due);
+      if (viewingCurrentWeek && idx === todayIdxUK) cell.classList.add('today-col');
       cell.appendChild(circle);
       grid.appendChild(cell);
     });

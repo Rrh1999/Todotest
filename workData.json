@@ -406,6 +406,38 @@
       "notes": ""
     },
     {
+      "id": "00000072",
+      "parent": null,
+      "name": "Read the chbh oplr part c and operating rules",
+      "project": "MRI Training",
+      "dueDate": "",
+      "importance": "High",
+      "urgency": "High",
+      "recurring": false,
+      "frequency": null,
+      "interval": null,
+      "from": null,
+      "status": "open",
+      "subtasks": [],
+      "notes": ""
+    },
+    {
+      "id": "00000073",
+      "parent": null,
+      "name": "Embedd a way to review papers and save stuff",
+      "project": "PhD Admin",
+      "dueDate": "",
+      "importance": "High",
+      "urgency": "High",
+      "recurring": false,
+      "frequency": null,
+      "interval": null,
+      "from": null,
+      "status": "open",
+      "subtasks": [],
+      "notes": ""
+    },
+    {
       "id": "00000009",
       "parent": null,
       "name": "Second Draft",
@@ -660,7 +692,7 @@
       "frequency": null,
       "interval": null,
       "from": null,
-      "status": "open",
+      "status": "closed",
       "subtasks": [],
       "notes": ""
     },
@@ -676,7 +708,7 @@
       "frequency": null,
       "interval": null,
       "from": null,
-      "status": "open",
+      "status": "closed",
       "subtasks": [],
       "notes": ""
     },
@@ -783,7 +815,7 @@
       "frequency": null,
       "interval": null,
       "from": null,
-      "status": "open",
+      "status": "closed",
       "subtasks": [],
       "name": "- Torodov see how many % subset they did, and jules do that",
       "project": "Meta-Analysis CD & Impulsivity",
@@ -983,25 +1015,9 @@
       "status": "open",
       "subtasks": [],
       "notes": ""
-    },
-    {
-      "id": "00000072",
-      "parent": null,
-      "name": "Read the chbh oplr part c and operating rules",
-      "project": "MRI Training",
-      "dueDate": "",
-      "importance": "High",
-      "urgency": "High",
-      "recurring": false,
-      "frequency": null,
-      "interval": null,
-      "from": null,
-      "status": "open",
-      "subtasks": [],
-      "notes": ""
     }
   ],
-  "workNextId": 73,
+  "workNextId": 74,
   "maxSubDepth": 7,
   "calendarEvents": [
     {
@@ -1159,13 +1175,24 @@
       "id": "14",
       "title": "Main Supervision",
       "project": "",
-      "date": "",
+      "date": "2025-08-29",
       "attendees": "Rita & Stephane",
-      "content": "- Send reasonable adjustment plan to send AIM (send it them)\n\n\nAnnual progress review meetings (all years): between Monday 28th July and Friday 22nd August 2025; <- This is not the \n\nEmail Lei <- 9 month review\n\nGSR3 Reply <- Let her know my supervisor is aware at the moment, and I will submit when he's back\n\n- thank you for providing information, and your time, we will see if we can include it, we have very specific inclusion criteria\n\n- Merve ÇIKILI UYTUN  <- thank you we will include your data inthe portion where we can include. \n\n- Torodov see how many % subset they did, and jules do that\n\n- let noemi and ellie if they have any q's on impulsivity\n\n- make sure im helping with recruitment \n\n- The focus of my PhD and different chapters. \n\n- out of office reply, \n\n- 26th August 2025, Stephane will be back\n\nNew items:\n\nlets go through the goal posts\nMaltreatment rushkin\n",
-      "outcomes": "",
+      "content": "Training:\n•\tMRI – with Nina next week\n\nPart time:\n•\tPaperwork (just check)\n•\tAction - Send reasonable adjustment plan to send AIM (send it them)\nComplete and send to stephane -> PhD. \n\nGSR3:\n•\tEmailed to let know you are away\n•\tI have done draft 1, need to refine\n\nAnnual Progress Review:\n•\tEmailed lei\n•\tGot a response \n•\tFeel like I am happy to do it, if we can just have a date to aim for\n \nWill think who because they will be final viva <- a) look at the list of faculty and make suggestion, assistant prof and prof. \nGSR3 -> Do that and send it over to hm and john -> and send it off. Don’t spend too much time. Not essay type, bullet types. \nGSR2 -> double check it\n\nMeta Analysis:\n•\tContacted all the people, except those who I am unsure of if lifetime and we don’t need to chase for data (ask jules to double check when he is back)\no\tAsk Jules to check these and then check those papers. \no\tChase graham Fairchild -> chase when hes back in first or second week of september\n•\tI checked what Jessica did for her meta analysis… it was like 40 papers, Jules have done a 1000… he just needs to go through his conflicts to check them\n•\tI did email Noemi and Ellie to see if Q’s on impulsivity\n•\tWriting intro and methods – draft 1 dine\n\n-\tFor quality assessment see if someone else is available\n\nThere Admin:\n",
+      "outcomes": "-\tGant chart next supervision\n-\tSend stephane part time paper (with reasonable adjustement plan)\n-\tEmail the person back about the annual review and say we are looking to organise now\n-\tSend the person the GSR3 (make bullet points and also make priority)\n-\tLook at who will be your Viva Supervisor through the website, make suggestions and we will go through it\n-\tDouble GSR2 today!\n",
       "attachments": [],
       "followupOf": "12"
+    },
+    {
+      "id": "17",
+      "title": "Main Supervision",
+      "project": "",
+      "date": "",
+      "attendees": "Rita &amp; Stephane",
+      "content": "-\tGant chart next supervision\n-\tSend stephane part time paper (with reasonable adjustement plan)&nbsp;<div>-\tEmail the person back about the annual review and say we are looking to organise now<div>&nbsp;-\tSend the person the GSR3 (make bullet points and also make priority)&nbsp;</div><div>-\tLook at who will be your Viva Supervisor through the website, make suggestions and we will go through it\n-\tDouble GSR2 today!\n</div></div>",
+      "outcomes": "",
+      "attachments": [],
+      "followupOf": "14"
     }
   ],
-  "meetingNextId": 16
+  "meetingNextId": 18
 }

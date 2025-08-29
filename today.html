@@ -42,6 +42,8 @@ body { margin: 0; padding: 0; }
 .grey { background: #ccc; }
 .green { background: #81B29A; color: #fff; }
 
+.today-col { background: rgba(181, 168, 154, 0.22) !important; }
+
 @media (max-width: 600px) {
   html { font-size: 14px; }
   .modal-content { width: 95%; margin: 2% auto; }
@@ -782,6 +784,32 @@ function updateModalWeekLabel() {
     `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
 }
 
+// UK helpers for current-week highlighting and sorting
+function ukDayIndex(date=new Date()){
+  try{
+    const short=new Intl.DateTimeFormat('en-GB',{weekday:'short',timeZone:'Europe/London'}).format(date);
+    const map={Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5,Sun:6};
+    if(short in map) return map[short];
+  }catch(_){/* ignore */}
+  const d=new Date(date).getDay();
+  return d===0?6:d-1;
+}
+function ukDayName(date=new Date()){
+  const names=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  try{
+    const short=new Intl.DateTimeFormat('en-GB',{weekday:'short',timeZone:'Europe/London'}).format(date);
+    if(names.includes(short)) return short;
+  }catch(_){/* ignore */}
+  return names[ukDayIndex(date)];
+}
+function isCurrentUKWeek(weekStart){
+  return formatISO(startOfWeek(new Date()))===formatISO(startOfWeek(weekStart));
+}
+function weekISOArray(weekStart){
+  const arr=[];for(let i=0;i<7;i++){const d=new Date(weekStart);d.setDate(weekStart.getDate()+i);arr.push(formatISO(d));}
+  return arr;
+}
+
 function renderModalWeeklyGrid() {
   const grid = document.getElementById('modalWeeklyGrid');
   const headers = ['Task', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -789,15 +817,19 @@ function renderModalWeeklyGrid() {
   grid.innerHTML = '';
   
   // Add headers
+  const viewingCurrentWeek=isCurrentUKWeek(modalCurrentWeekStart);
+  const todayIdx=ukDayIndex(new Date());
+  const todayName=ukDayName(new Date());
   headers.forEach(headerText => {
     const header = document.createElement('div');
     header.className = 'grid-header';
     header.textContent = headerText;
+    if(viewingCurrentWeek && headerText===todayName) header.classList.add('today-col');
     grid.appendChild(header);
   });
   
   // Add tasks
-  const openTasks = weeklyTasks.filter(t => t.status === 'open');
+  let openTasks = weeklyTasks.filter(t => t.status === 'open');
   if (openTasks.length === 0) {
     const row = document.createElement('div');
     row.textContent = 'No weekly tasks';
@@ -806,6 +838,29 @@ function renderModalWeeklyGrid() {
     row.style.padding = '2rem';
     grid.appendChild(row);
     return;
+  }
+  if(viewingCurrentWeek){
+    const names=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const weekISO=weekISOArray(modalCurrentWeekStart);
+    const hasMissedEarlier=(task)=>{
+      for(let i=0;i<todayIdx;i++){
+        const day=names[i];
+        if(task.days && task.days.includes(day)){
+          const iso=weekISO[i];
+          if(!task.completedDates.includes(iso)) return true;
+        }
+      }
+      return false;
+    };
+    openTasks=openTasks.slice().sort((a,b)=>{
+      const aDue=a.days && a.days.includes(todayName);
+      const bDue=b.days && b.days.includes(todayName);
+      if(aDue!==bDue) return aDue?-1:1;
+      const aMiss=hasMissedEarlier(a);
+      const bMiss=hasMissedEarlier(b);
+      if(aMiss!==bMiss) return aMiss?-1:1;
+      return (a.name||'').localeCompare(b.name||'');
+    });
   }
   
   openTasks.forEach(task => {
@@ -826,6 +881,7 @@ function renderModalWeeklyGrid() {
       circle.className = 'circle ' + (completed ? 'green' : due ? 'purple' : 'grey');
       circle.innerHTML = completed ? '&#10004;' : '';
       circle.onclick = () => toggleModalComplete(task.id, iso, due);
+      if(viewingCurrentWeek && idx===todayIdx) cell.classList.add('today-col');
       cell.appendChild(circle);
       grid.appendChild(cell);
     });

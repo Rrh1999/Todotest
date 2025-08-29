@@ -56,7 +56,8 @@
       "skillId": 2,
       "info": "Draw some paths on the floor in chalk like an obstacle where on some they hop, and they follow a path or whatever. And run it with them.",
       "completedDates": [
-        "2025-08-22"
+        "2025-08-22",
+        "2025-08-27"
       ],
       "status": "open",
       "dueDate": ""
@@ -93,7 +94,9 @@
       "name": "Gesture parade",
       "skillId": 3,
       "info": "Model → wait → shape hands to sign → pair with words\n(wave, clap, “more/all done”)",
-      "completedDates": [],
+      "completedDates": [
+        "2025-08-28"
+      ],
       "status": "open",
       "dueDate": ""
     },
@@ -111,7 +114,10 @@
       "name": "Hide & find (under cup)",
       "skillId": 4,
       "info": "Hide under one → shuffle slowly → faster",
-      "completedDates": [],
+      "completedDates": [
+        "2025-08-27",
+        "2025-08-28"
+      ],
       "status": "open",
       "dueDate": ""
     },
@@ -138,7 +144,9 @@
       "name": "Matching colours",
       "skillId": 5,
       "info": "Get a bunch of pens and blocks. Match the colours.",
-      "completedDates": [],
+      "completedDates": [
+        "2025-08-27"
+      ],
       "status": "open",
       "dueDate": ""
     },
@@ -204,8 +212,19 @@
       "completedDates": [],
       "status": "open",
       "dueDate": ""
+    },
+    {
+      "id": "00000019",
+      "name": "Play dough",
+      "skillId": 5,
+      "info": "Make Play-Doh and have fun with it",
+      "completedDates": [
+        "2025-08-28"
+      ],
+      "status": "open",
+      "dueDate": ""
     }
   ],
   "nextSkillId": 10,
-  "nextActivityId": 19
+  "nextActivityId": 20
 }

@@ -277,9 +277,19 @@ section { padding:1rem; }
 .meeting-past{background:#f0f0f0;}
 .meeting-today{background:#d0ffd0;}
 .meeting-upcoming{background:#f0f8ff;}
-.modal{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);}
-.modal-content{background:#fff;padding:1rem;border-radius:4px;max-width:90%;width:320px;}
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(43,44,41,0.5);z-index:9999;}
+.modal-content{background:#fff;padding:1rem;border-radius:8px;max-width:90vw;width:520px;box-shadow:0 4px 20px rgba(43,44,41,0.3);} 
+/* Meeting modal is wider */
+#meetingModal .modal-content{width:75vw;max-width:95vw;max-height:90vh;overflow-y:auto;}
 .modal-content input,.modal-content textarea,.modal-content select{width:100%;margin-bottom:0.5rem;}
+
+/* Simple rich text editor styles */
+.rte-toolbar{display:flex;flex-wrap:wrap;gap:6px;margin:0.25rem 0;align-items:center;}
+.rte-toolbar button{background:#C7BBB4;color:#2B2C29;border:none;border-radius:8px;padding:4px 8px;font-size:0.85rem;cursor:pointer;}
+.rte-toolbar button:hover{background:#B5A89A;color:#E7E4D6;}
+.rte-toolbar input[type="color"]{width:28px;height:28px;border:none;padding:0;background:transparent;cursor:pointer;border-radius:6px;}
+.rte{min-height:100px;border:1px solid #ccc;border-radius:6px;padding:0.5rem;background:#fff;}
+.rte:focus{outline:2px solid #C7BBB4;}
 @media (max-width: 768px) {
   .task-row {
     font-size: 0.9rem;
@@ -486,19 +496,66 @@ section { padding:1rem; }
       <label>Title<input id="meetTitle"></label>
       <label>Project<select id="meetProject"></select></label>
       <label>Date<input type="date" id="meetDate"></label>
-      <label>Attendees<textarea id="meetAttendees"></textarea></label>
-      <label>Content<textarea id="meetContent"></textarea></label>
-      <label>Outcomes<textarea id="meetOutcomes"></textarea></label>
+      <label>Attendees
+        <div class="rte-toolbar">
+          <button type="button" onclick="applyRTECommand('meetAttendees','bold')"><b>B</b></button>
+          <button type="button" onclick="applyRTECommand('meetAttendees','italic')"><i>I</i></button>
+          <button type="button" onclick="applyRTECommand('meetAttendees','underline')"><u>U</u></button>
+          <button type="button" onclick="applyRTECommand('meetAttendees','insertUnorderedList')">• List</button>
+          <button type="button" onclick="applyRTECommand('meetAttendees','insertOrderedList')">1. List</button>
+          <label style="display:inline-flex;align-items:center;gap:4px;">A
+            <input type="color" onchange="applyRTECommand('meetAttendees','foreColor',this.value)">
+          </label>
+          <label style="display:inline-flex;align-items:center;gap:4px;">HL
+            <input type="color" onchange="applyRTECommand('meetAttendees','hiliteColor',this.value)">
+          </label>
+        </div>
+        <div id="meetAttendees" class="rte" contenteditable="true"></div>
+      </label>
+      <label>Content
+        <div class="rte-toolbar">
+          <button type="button" onclick="applyRTECommand('meetContent','bold')"><b>B</b></button>
+          <button type="button" onclick="applyRTECommand('meetContent','italic')"><i>I</i></button>
+          <button type="button" onclick="applyRTECommand('meetContent','underline')"><u>U</u></button>
+          <button type="button" onclick="applyRTECommand('meetContent','insertUnorderedList')">• List</button>
+          <button type="button" onclick="applyRTECommand('meetContent','insertOrderedList')">1. List</button>
+          <label style="display:inline-flex;align-items:center;gap:4px;">A
+            <input type="color" onchange="applyRTECommand('meetContent','foreColor',this.value)">
+          </label>
+          <label style="display:inline-flex;align-items:center;gap:4px;">HL
+            <input type="color" onchange="applyRTECommand('meetContent','hiliteColor',this.value)">
+          </label>
+        </div>
+        <div id="meetContent" class="rte" contenteditable="true"></div>
+      </label>
+      <label>Outcomes
+        <div class="rte-toolbar">
+          <button type="button" onclick="applyRTECommand('meetOutcomes','bold')"><b>B</b></button>
+          <button type="button" onclick="applyRTECommand('meetOutcomes','italic')"><i>I</i></button>
+          <button type="button" onclick="applyRTECommand('meetOutcomes','underline')"><u>U</u></button>
+          <button type="button" onclick="applyRTECommand('meetOutcomes','insertUnorderedList')">• List</button>
+          <button type="button" onclick="applyRTECommand('meetOutcomes','insertOrderedList')">1. List</button>
+          <label style="display:inline-flex;align-items:center;gap:4px;">A
+            <input type="color" onchange="applyRTECommand('meetOutcomes','foreColor',this.value)">
+          </label>
+          <label style="display:inline-flex;align-items:center;gap:4px;">HL
+            <input type="color" onchange="applyRTECommand('meetOutcomes','hiliteColor',this.value)">
+          </label>
+        </div>
+        <div id="meetOutcomes" class="rte" contenteditable="true"></div>
+      </label>
       <div id="attachList"></div>
-      <input id="attachInput" placeholder="Attachment URL"><button onclick="addAttachment()">Add</button>
-      <div style="text-align:right;margin-top:0.5rem;">
-        <button onclick="saveMeeting()">Save</button>
-        <button onclick="deleteMeeting()">Delete</button>
-        <button onclick="addFollowUp()">Add Follow-Up</button>
-        <button onclick="addOutcomeTask()">Add as Task</button>
-        <button onclick="closeMeetingModal()">Close</button>
+      <div style="display:flex;gap:0.5rem;align-items:center;">
+        <input id="attachInput" placeholder="Attachment URL" style="flex:1;">
+        <button onclick="addAttachment()" class="submit-btn" style="padding:0.45rem 0.9rem;">Add</button>
       </div>
-    </div>
+      <div style="text-align:right;margin-top:0.5rem;display:flex;gap:0.5rem;justify-content:flex-end;flex-wrap:wrap;">
+        <button onclick="saveMeeting()" class="submit-btn">Save</button>
+        <button onclick="deleteMeeting()" class="submit-btn" style="background:#E07A5F;color:#fff;">Delete</button>
+        <button onclick="addFollowUp()" class="submit-btn">Add Follow-Up</button>
+        <button onclick="addOutcomeTask()" class="submit-btn">Add as Task</button>
+        <button onclick="closeMeetingModal()" class="submit-btn">Close</button>
+      </div>
     </div>
   </div>
 
@@ -1243,9 +1300,10 @@ function openMeetingModal(id, data){
   document.getElementById('meetTitle').value=currentMeeting.title;
   document.getElementById('meetProject').value=currentMeeting.project;
   document.getElementById('meetDate').value=currentMeeting.date;
-  document.getElementById('meetAttendees').value=currentMeeting.attendees;
-  document.getElementById('meetContent').value=currentMeeting.content;
-  document.getElementById('meetOutcomes').value=currentMeeting.outcomes;
+  // Populate rich text editors (HTML or plain text fallback)
+  document.getElementById('meetAttendees').innerHTML = currentMeeting.attendees || '';
+  document.getElementById('meetContent').innerHTML = currentMeeting.content || '';
+  document.getElementById('meetOutcomes').innerHTML = currentMeeting.outcomes || '';
   renderAttachments();
   document.getElementById('meetingModal').classList.remove('hidden');
 }
@@ -1281,9 +1339,10 @@ function saveMeeting(){
   currentMeeting.title=document.getElementById('meetTitle').value.trim();
   currentMeeting.project=document.getElementById('meetProject').value;
   currentMeeting.date=document.getElementById('meetDate').value;
-  currentMeeting.attendees=document.getElementById('meetAttendees').value;
-  currentMeeting.content=document.getElementById('meetContent').value;
-  currentMeeting.outcomes=document.getElementById('meetOutcomes').value;
+  // Extract HTML from rich text editors
+  currentMeeting.attendees=document.getElementById('meetAttendees').innerHTML;
+  currentMeeting.content=document.getElementById('meetContent').innerHTML;
+  currentMeeting.outcomes=document.getElementById('meetOutcomes').innerHTML;
   if(!meetings.find(m=>m.id===currentMeeting.id)){
     meetings.push(currentMeeting);
   }
@@ -1309,7 +1368,13 @@ function addFollowUp(){
 
 function addOutcomeTask(){
   const ta=document.getElementById('meetOutcomes');
-  const text=ta.value.substring(ta.selectionStart, ta.selectionEnd) || ta.value;
+  // For RTE, prefer selected HTML/text; fallback to entire innerText
+  let text='';
+  const selection = window.getSelection();
+  if(selection && selection.rangeCount>0 && ta.contains(selection.anchorNode)){
+    text = selection.toString();
+  }
+  if(!text){ text = ta.innerText || ''; }
   if(!text.trim()) return;
   const task={name:text.trim(),project:currentMeeting.project,dueDate:'',importance:'Medium',urgency:'Medium',notes:'from meeting '+currentMeeting.id};
   openTaskModal(task);
@@ -1423,6 +1488,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
 loadData();
 initializePinnedSections();
+
+// ----- Simple Rich Text Editing Helpers -----
+function focusRTE(id){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.focus();
+}
+function applyRTECommand(id, cmd, value=null){
+  const el=document.getElementById(id);
+  if(!el) return;
+  // Ensure selection is inside the editor
+  const range=document.createRange();
+  range.selectNodeContents(el);
+  const sel=window.getSelection();
+  if(sel && sel.rangeCount===0){ sel.removeAllRanges(); sel.addRange(range); }
+  try{
+    document.execCommand(cmd,false,value);
+    el.focus();
+  }catch(e){ console.warn('RTE command failed', cmd, e); }
+}
 </script>
 </body>
 </html>
