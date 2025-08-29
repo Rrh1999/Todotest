@@ -512,6 +512,11 @@ function renderToday(){
       if(taskScheduledToday(t.type,t.item.id)) text.style.fontWeight='bold';
     }
     text.textContent=prefix+label;
+    if(page){
+      const timerBtn=createTimerButton(page.toLowerCase(), t.item.name);
+      timerBtn.style.marginLeft='0.25rem';
+      text.appendChild(timerBtn);
+    }
     const btnBox=document.createElement('span');
     const up=document.createElement('button');
     up.textContent='Up';
@@ -938,6 +943,8 @@ function renderModalOneOffTable() {
     addBtn.style.cursor = 'pointer';
     addBtn.onclick = () => addTaskToToday('oneoff', t.id, t.name);
     actionTd.appendChild(addBtn);
+    const timerBtn = createTimerButton('todo', t.name);
+    actionTd.appendChild(timerBtn);
     tr.appendChild(taskTd);
     tr.appendChild(dueTd);
     tr.appendChild(actionTd);
@@ -1002,6 +1009,8 @@ function renderModalRecurringTable() {
     addBtn.style.cursor = 'pointer';
     addBtn.onclick = () => addTaskToToday('recurring', t.id, t.name);
     actionTd.appendChild(addBtn);
+    const timerBtn = createTimerButton('todo', t.name);
+    actionTd.appendChild(timerBtn);
     tr.appendChild(taskTd);
     tr.appendChild(dueTd);
     tr.appendChild(freqTd);
@@ -1072,6 +1081,8 @@ function renderModalWorkTable() {
     addBtn.style.cursor = 'pointer';
     addBtn.onclick = () => addTaskToToday('work', t.id, t.name);
     actionTd.appendChild(addBtn);
+    const timerBtn = createTimerButton('work', t.name);
+    actionTd.appendChild(timerBtn);
     tr.appendChild(taskTd);
     tr.appendChild(dueTd);
     tr.appendChild(impTd);
@@ -1145,6 +1156,8 @@ function renderModalDiyTable() {
     addBtn.style.cursor = 'pointer';
     addBtn.onclick = () => addTaskToToday('diy', t.id, t.name);
     actionTd.appendChild(addBtn);
+    const timerBtn = createTimerButton('diy', t.name);
+    actionTd.appendChild(timerBtn);
     tr.appendChild(taskTd);
     tr.appendChild(dueTd);
     tr.appendChild(urgTd);
@@ -1205,6 +1218,8 @@ function renderModalBigTable() {
     addBtn.style.cursor = 'pointer';
     addBtn.onclick = () => addTaskToToday('big', t.id, t.name);
     actionTd.appendChild(addBtn);
+    const timerBtn = createTimerButton('todo', t.name);
+    actionTd.appendChild(timerBtn);
     tr.appendChild(taskTd);
     tr.appendChild(dueTd);
     tr.appendChild(actionTd);
@@ -1265,6 +1280,8 @@ function renderModalStretchTable() {
     addBtn.style.cursor = 'pointer';
     addBtn.onclick = () => addTaskToToday('stretch', t.id, t.name);
     actionTd.appendChild(addBtn);
+    const timerBtn = createTimerButton('todo', t.name);
+    actionTd.appendChild(timerBtn);
     tr.appendChild(taskTd);
     tr.appendChild(lastTd);
     tr.appendChild(actionTd);
@@ -1311,9 +1328,11 @@ function createModalTaskCell(task) {
   addTodayBtn.style.border = 'none';
   addTodayBtn.style.cursor = 'pointer';
   addTodayBtn.onclick = () => addTaskToToday('weekly', task.id, task.name);
-  
+
   actionsDiv.appendChild(addTodayBtn);
-  
+  const timerBtn = createTimerButton('todo', task.name);
+  actionsDiv.appendChild(timerBtn);
+
   cell.appendChild(detailsDiv);
   cell.appendChild(actionsDiv);
   

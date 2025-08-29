@@ -89,6 +89,8 @@ const DIY_FILE = path.join(DATA_DIR, 'diyData.json');
 const FINANCE_FILE = path.join(DATA_DIR, 'financeData.json');
 const PARENTING_FILE = path.join(DATA_DIR, 'parentingData.json');
 const SOUL_FILE = path.join(DATA_DIR, 'soulData.json');
+const RELATIONSHIPS_FILE = path.join(DATA_DIR, 'relationshipsData.json');
+const TIME_TRACKER_FILE = path.join(DATA_DIR, 'timeTrackerData.json');
 
 function loadJson(file, def) {
   if (fs.existsSync(file)) {
@@ -110,6 +112,8 @@ function initDb() {
   financeData = loadJson(FINANCE_FILE, financeData);
   parentingData = loadJson(PARENTING_FILE, parentingData);
   soulData = loadJson(SOUL_FILE, soulData);
+  relationshipsData = loadJson(RELATIONSHIPS_FILE, relationshipsData);
+  timeTrackerData = loadJson(TIME_TRACKER_FILE, timeTrackerData);
   soulData.meditations = soulData.meditations || [];
   soulData.nextMeditationId = soulData.nextMeditationId || 1;
   soulData.journalTypes = soulData.journalTypes || [];
@@ -247,27 +251,73 @@ app.post('/api/parenting-data', (req, res) => {
 });
 
 // soul page data
-  let soulData = {
-    meditations: [],
-    nextMeditationId: 1,
-    journalTypes: [],
-    nextJournalTypeId: 1,
-    journals: [], // each {id,title,date,type,text,media:[]}
-    nextJournalId: 1,
-    mottos: [],
-    nextMottoId: 1
-  };
+let soulData = {
+  meditations: [],
+  nextMeditationId: 1,
+  journalTypes: [],
+  nextJournalTypeId: 1,
+  journals: [], // each {id,title,date,type,text,media:[]}
+  nextJournalId: 1,
+  mottos: [],
+  nextMottoId: 1
+};
+
+// relationships page data
+let relationshipsData = {
+  people: [],
+  entries: [],
+  nextEntryId: 1
+};
+
+// time tracker data
+let timeTrackerData = {
+  tasks: [],
+  nextId: 1
+};
 
 app.get('/api/soul-data', (req, res) => {
   res.json(soulData);
 });
 
-  app.post('/api/soul-data', (req, res) => {
-    soulData = req.body;
-    soulData.journals = (soulData.journals || []).map(j=>({ ...j, media: j.media || [] }));
-    fs.writeFileSync(SOUL_FILE, JSON.stringify(soulData, null, 2));
-    res.json({ status: 'ok' });
-  });
+app.post('/api/soul-data', (req, res) => {
+  soulData = req.body;
+  soulData.journals = (soulData.journals || []).map(j=>({ ...j, media: j.media || [] }));
+  fs.writeFileSync(SOUL_FILE, JSON.stringify(soulData, null, 2));
+  res.json({ status: 'ok' });
+});
+
+app.get('/api/relationships-data', (req, res) => {
+  res.json(relationshipsData);
+});
+
+app.post('/api/relationships-data', (req, res) => {
+  relationshipsData = req.body;
+  fs.writeFileSync(RELATIONSHIPS_FILE, JSON.stringify(relationshipsData, null, 2));
+  res.json({ status: 'ok' });
+});
+
+// time tracker endpoints
+app.get('/api/time-tracker', (req, res) => {
+  res.json(timeTrackerData);
+});
+
+app.post('/api/time-tracker/start', (req, res) => {
+  const { name, source } = req.body || {};
+  const now = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/London' }).replace(' ', 'T');
+  const task = { id: timeTrackerData.nextId++, name, source, start: now, end: null };
+  timeTrackerData.tasks.push(task);
+  fs.writeFileSync(TIME_TRACKER_FILE, JSON.stringify(timeTrackerData, null, 2));
+  res.json(task);
+});
+
+app.post('/api/time-tracker/stop', (req, res) => {
+  const { id } = req.body || {};
+  const task = timeTrackerData.tasks.find(t => t.id === id && !t.end);
+  if (!task) return res.status(404).json({ error: 'Task not found' });
+  task.end = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/London' }).replace(' ', 'T');
+  fs.writeFileSync(TIME_TRACKER_FILE, JSON.stringify(timeTrackerData, null, 2));
+  res.json(task);
+});
 
 app.post('/api/add-to-today', (req, res) => {
   const { taskType, taskId, taskName } = req.body;
